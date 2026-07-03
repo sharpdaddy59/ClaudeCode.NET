@@ -104,7 +104,10 @@ public class ClaudeStreamParserTests
     [Theory]
     [InlineData("allowed", false)]
     [InlineData("rejected", true)]
-    [InlineData("queued", true)]
+    // Unknown/benign statuses must not trigger the retry loop - only a hard
+    // rejection counts; error-text heuristics cover everything else
+    [InlineData("queued", false)]
+    [InlineData("allowed_warning", false)]
     public void ParseLine_RateLimitEvent_FlagsByStatus(string status, bool expected)
     {
         var events = ClaudeStreamParser.ParseLine(

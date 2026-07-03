@@ -168,9 +168,11 @@ public sealed class ClaudeSession
         {
             foreach (var evt in ClaudeStreamParser.ParseLine(line))
             {
+                // The stderr pump writes these flags concurrently: only ever SET them.
+                // (`x |= false` still writes back and can clobber the other pump's true.)
                 sessionId = evt.SessionId ?? sessionId;
-                rateLimitDetected |= evt.IsRateLimited;
-                isError |= evt.IsError;
+                if (evt.IsRateLimited) rateLimitDetected = true;
+                if (evt.IsError) isError = true;
                 if (evt.Kind == ClaudeStreamEventKind.Result)
                 {
                     resultText = evt.Text;

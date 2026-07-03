@@ -315,7 +315,10 @@ public static class ClaudeStreamParser
         {
             Kind = ClaudeStreamEventKind.RateLimit,
             Text = status,
-            IsRateLimited = status is not null and not "allowed"
+            // Only 'rejected' clearly means throttled. Treating every unknown status as
+            // a rate limit would send benign heartbeats (or a future 'allowed_warning')
+            // into the retry loop; the substring heuristic still covers error text.
+            IsRateLimited = status == "rejected"
         }];
     }
 
