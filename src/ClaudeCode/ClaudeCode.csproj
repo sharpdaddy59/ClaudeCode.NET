@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
 
-    <PackageId>ClaudeAgent.Net</PackageId>
+    <PackageId>ClaudeCode.Net</PackageId>
     <Version>0.1.0</Version>
     <Authors>Greg Haley</Authors>
     <Description>Drive Claude Code CLI sessions from .NET: typed stream-json events, session resume, and safe argument handling. Works with Max plan authentication (claude login) - no API key required.</Description>

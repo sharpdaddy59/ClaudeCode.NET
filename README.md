@@ -1,4 +1,4 @@
-# ClaudeAgent.NET
+# ClaudeCode.NET
 
 **Drive Claude Code sessions from .NET.**
 
@@ -25,7 +25,7 @@ Parsing is verified against real CLI output, not guessed from docs.
 ## Quick start
 
 ```csharp
-using ClaudeAgent;
+using ClaudeCode;
 
 var session = new ClaudeSession();
 var options = new ClaudeSessionOptions

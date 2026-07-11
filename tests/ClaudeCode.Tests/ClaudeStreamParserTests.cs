@@ -1,8 +1,8 @@
 using FluentAssertions;
-using ClaudeAgent;
+using ClaudeCode;
 using Xunit;
 
-namespace ClaudeAgent.Tests;
+namespace ClaudeCode.Tests;
 
 public class ClaudeStreamParserTests
 {

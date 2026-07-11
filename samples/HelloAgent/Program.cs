@@ -1,11 +1,11 @@
-using ClaudeAgent;
+using ClaudeCode;
 
 // Minimal end-to-end example: stream a session's events to the console.
 // Requires the Claude Code CLI installed and authenticated (claude login).
 
 var prompt = args.Length > 0
     ? string.Join(' ', args)
-    : "In one short sentence, say hello from ClaudeAgent.NET.";
+    : "In one short sentence, say hello from ClaudeCode.NET.";
 
 var options = new ClaudeSessionOptions
 {

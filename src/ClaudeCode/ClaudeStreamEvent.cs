@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace ClaudeAgent;
+namespace ClaudeCode;
 
 public enum ClaudeStreamEventKind
 {

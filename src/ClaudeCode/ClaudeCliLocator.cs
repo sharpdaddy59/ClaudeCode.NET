@@ -1,4 +1,4 @@
-namespace ClaudeAgent;
+namespace ClaudeCode;
 
 /// <summary>
 /// Locates the Claude Code CLI executable across platforms.

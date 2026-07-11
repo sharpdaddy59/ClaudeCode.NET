@@ -5,7 +5,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace ClaudeAgent;
+namespace ClaudeCode;
 
 /// <summary>
 /// Runs Claude Code CLI sessions and exposes their stream-json output as typed events.

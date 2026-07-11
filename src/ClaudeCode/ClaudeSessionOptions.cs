@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace ClaudeAgent;
+namespace ClaudeCode;
 
 /// <summary>
 /// Options for a single Claude CLI invocation.
