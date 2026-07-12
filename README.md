@@ -136,11 +136,11 @@ var result = await session.RunAsync(prompt, options, cts.Token);
 
 ## Samples
 
-Runnable projects in [`samples/`](samples/):
+Runnable projects in [`samples/`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples):
 
-- [`CommitMessageBot`](samples/CommitMessageBot/) - staged diff in, conventional commit message out (~40 lines)
-- [`ChainedRefactor`](samples/ChainedRefactor/) - two sessions where the second *resumes* the first and provably builds on its context
-- [`HelloAgent`](samples/HelloAgent/) - minimal event-stream walkthrough
+- [`CommitMessageBot`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/CommitMessageBot) - staged diff in, conventional commit message out (~40 lines)
+- [`ChainedRefactor`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/ChainedRefactor) - two sessions where the second *resumes* the first and provably builds on its context
+- [`HelloAgent`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/HelloAgent) - minimal event-stream walkthrough
 
 ## Status
 
