@@ -44,7 +44,7 @@ public sealed class ClaudeSession
             SingleReader = true
         });
 
-        var runTask = RunCoreAsync(
+        var runTask = RunAsync(
             prompt,
             options,
             evt => channel.Writer.TryWrite(evt),
@@ -83,7 +83,7 @@ public sealed class ClaudeSession
         var text = new StringBuilder();
         ClaudeSessionResult? result = null;
 
-        result = await RunCoreAsync(
+        result = await RunAsync(
             prompt,
             options,
             evt =>
@@ -110,12 +110,19 @@ public sealed class ClaudeSession
         };
     }
 
-    private async Task<ClaudeSessionResult> RunCoreAsync(
+    /// <summary>
+    /// Runs the CLI to completion with per-event callbacks and returns the final
+    /// result (exit code, session id, rate-limit signal). The lowest-level overload -
+    /// orchestrators that relay events to a UI while also needing the outcome use
+    /// this; simpler callers want <see cref="StreamAsync"/> or the aggregating
+    /// <see cref="RunAsync(string, ClaudeSessionOptions, CancellationToken)"/>.
+    /// </summary>
+    public async Task<ClaudeSessionResult> RunAsync(
         string prompt,
         ClaudeSessionOptions options,
         Action<ClaudeStreamEvent>? onEvent,
-        Action<string>? onStdErrLine,
-        CancellationToken cancellationToken)
+        Action<string>? onStdErrLine = null,
+        CancellationToken cancellationToken = default)
     {
         var claudePath = ClaudeCliLocator.FindExecutable()
             ?? throw new ClaudeCliNotFoundException();
