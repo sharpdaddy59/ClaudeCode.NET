@@ -1,0 +1,39 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*' # v0.1.0 etc. - the tag is the publish button
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Verify tag matches csproj version
+        run: |
+          CSPROJ_VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/ClaudeCode/ClaudeCode.csproj)
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$CSPROJ_VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag $TAG_VERSION does not match csproj version $CSPROJ_VERSION - refusing to publish"
+            exit 1
+          fi
+
+      - name: Pack
+        run: dotnet pack src/ClaudeCode --configuration Release --output ./artifacts
+
+      - name: Push to NuGet
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
