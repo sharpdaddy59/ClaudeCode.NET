@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
 
     <PackageId>ClaudeCode.Net</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>Greg Haley</Authors>
     <Description>Drive Claude Code CLI sessions from .NET: typed stream-json events, session resume, and safe argument handling. Works with Max plan authentication (claude login) - no API key required.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
