@@ -290,4 +290,4 @@ public sealed record ClaudeRunResult
 /// Thrown when the Claude Code CLI cannot be located on this machine.
 /// </summary>
 public sealed class ClaudeCliNotFoundException() : Exception(
-    "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code, then authenticate with: claude login");
+    "Claude CLI not found. Install it with the native installer - Windows PowerShell: irm https://claude.ai/install.ps1 | iex - macOS/Linux: curl -fsSL https://claude.ai/install.sh | bash - then run claude to log in. Docs: https://code.claude.com/docs/en/quickstart");

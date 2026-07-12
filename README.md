@@ -16,11 +16,19 @@ Parsing is verified against real CLI output, not guessed from docs.
 ## Requirements
 
 - .NET 8.0 or later
-- [Claude Code CLI](https://code.claude.com/docs/en/overview) installed and authenticated:
-  ```bash
-  npm install -g @anthropic-ai/claude-code
-  claude login
+- Install the [Claude Code CLI](https://code.claude.com/docs/en/quickstart) (native installer, auto-updates):
+
+  ```powershell
+  # Windows (PowerShell)
+  irm https://claude.ai/install.ps1 | iex
   ```
+
+  ```bash
+  # macOS / Linux / WSL
+  curl -fsSL https://claude.ai/install.sh | bash
+  ```
+
+  Then authenticate: run `claude` and follow the login prompts.
 
 ## Quick start
 
