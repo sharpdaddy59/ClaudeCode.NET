@@ -8,6 +8,10 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # GitHub OIDC token issuance for NuGet Trusted Publishing
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,9 +35,18 @@ jobs:
       - name: Pack
         run: dotnet pack src/ClaudeCode --configuration Release --output ./artifacts
 
+      # Trusted Publishing: exchange the GitHub OIDC token for a short-lived
+      # (1 hour) NuGet API key. No stored secrets - nuget.org validates this
+      # workflow against the trusted publishing policy on the sharpdaddy account.
+      - name: NuGet login (OIDC -> temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: sharpdaddy
+
       - name: Push to NuGet
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
