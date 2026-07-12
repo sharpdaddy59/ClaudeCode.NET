@@ -86,7 +86,7 @@ dotnet run -- "What files are in this directory?"
 
 ## Status
 
-Early (0.1.0). Extracted from [SharpCoder](https://github.com/g1haley/SharpCoder), where this code drives multi-hour autonomous build sessions. API may move before 1.0.
+Early (0.1.0). Extracted from SharpCoder (a private project — an AI application generator), where this code drives multi-hour autonomous build sessions. API may move before 1.0.
 
 ## License
 
