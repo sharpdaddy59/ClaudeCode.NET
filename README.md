@@ -85,12 +85,62 @@ are yours to choose; the library just gives you a reliable signal.
 sessions can't answer permission prompts — without it, any Bash/Write tool call fails.
 Only run unattended sessions in a workspace you trust Claude to modify.
 
-## Sample
+## Cookbook
 
-```bash
-cd samples/HelloAgent
-dotnet run -- "What files are in this directory?"
+**Commit messages from your staged diff** (pure text generation - one turn, no tools):
+
+```csharp
+var diff = /* output of: git diff --cached */;
+var result = await session.RunAsync(
+    $"Write a conventional commit message for this diff. Reply with ONLY the message.\n\n{diff}",
+    new ClaudeSessionOptions { WorkingDirectory = repoDir, MaxTurns = 1, SkipPermissions = false });
+Console.WriteLine(result.ResultText);
 ```
+
+**Live progress display** - render what the agent is doing as it works:
+
+```csharp
+await foreach (var evt in session.StreamAsync(prompt, options))
+{
+    var line = evt.Kind switch
+    {
+        ClaudeStreamEventKind.ToolUse       => $"  [tool] {evt.ToolName}",
+        ClaudeStreamEventKind.AssistantText => $"  {evt.Text}",
+        ClaudeStreamEventKind.Result        => $"  [done: {evt.NumTurns} turns]",
+        _ => null
+    };
+    if (line is not null) Console.WriteLine(line);
+}
+```
+
+**Unattended runs: check the result honestly.** A session can "complete" while having
+failed - always look at the whole outcome, not just the text:
+
+```csharp
+var result = await session.RunAsync(prompt, options);
+
+if (result.RateLimitDetected && result.IsError)
+    /* back off and retry later */ ;
+else if (result.IsError || result.ExitCode != 0)
+    logger.LogError("Session failed: {Text}", result.ResultText);
+else
+    /* trust - then verify: run your tests before accepting the changes */ ;
+```
+
+**Timeouts** - cancellation kills the entire CLI process tree, no orphans:
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+var result = await session.RunAsync(prompt, options, cts.Token);
+```
+
+## Samples
+
+Runnable projects in [`samples/`](samples/):
+
+- [`CommitMessageBot`](samples/CommitMessageBot/) - staged diff in, conventional commit message out (~40 lines)
+- [`ChainedRefactor`](samples/ChainedRefactor/) - two sessions where the second *resumes* the first and provably builds on its context
+- [`HelloAgent`](samples/HelloAgent/) - minimal event-stream walkthrough
 
 ## Status
 

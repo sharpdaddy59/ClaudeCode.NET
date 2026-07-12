@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
+    <Project Path="samples/ChainedRefactor/ChainedRefactor.csproj" />
+    <Project Path="samples/CommitMessageBot/CommitMessageBot.csproj" />
     <Project Path="samples/HelloAgent/HelloAgent.csproj" />
   </Folder>
   <Folder Name="/src/">
