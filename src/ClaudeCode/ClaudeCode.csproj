@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
 
     <PackageId>ClaudeCode.Net</PackageId>
-    <Version>0.2.3</Version>
+    <Version>0.2.4</Version>
     <Authors>Greg Haley</Authors>
     <Description>Drive Claude Code CLI sessions from .NET: typed stream-json events, session resume, and safe argument handling. Works with Max plan authentication (claude login) - no API key required.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

@@ -30,6 +30,38 @@ Parsing is verified against real CLI output, not guessed from docs.
 
   Then authenticate: run `claude` and follow the login prompts.
 
+## Authentication & Anthropic's terms
+
+**ClaudeCode.Net never handles credentials.** The library contains no authentication
+code and makes no API calls — you can audit this in about a minute: there is no
+`HttpClient`, no token handling, and no reference to Anthropic's API anywhere in the
+source. Its entire integration surface is spawning the **official Claude Code CLI**
+as a child process and parsing its output stream.
+
+That means authentication belongs to the CLI, exactly as if you ran it yourself in a
+terminal, and you have two options:
+
+- **Claude subscription** (Pro/Max): run `claude` once and log in. Sessions started
+  by this library then run under your subscription, within its rate limits.
+- **API key** (metered billing): set `ANTHROPIC_API_KEY` in the environment of the
+  process you spawn. Identical library code; pay-per-token billing.
+
+**Why this architecture matters for compliance:** Anthropic's terms prohibit taking
+OAuth tokens from consumer accounts into other products — the prohibited pattern is
+*extracting your credential and calling the API from a different client*. This library
+does the opposite: every request originates from Anthropic's own client, authenticated
+by its own login flow. This is the same architecture as Anthropic's official Claude
+Agent SDK, which likewise wraps the CLI.
+
+**A caveat about the future:** Anthropic has signaled (announced May 2026, then
+postponed) that programmatic/SDK-style usage on subscriptions may eventually be billed
+from a separate credit pool than interactive use. If that lands, subscription users of
+this library may need to budget differently or switch to an API key — a billing
+change, not a compatibility one; the code path is identical either way. Check
+[Anthropic's consumer terms](https://www.anthropic.com/legal/consumer-terms) and the
+[Claude Code docs](https://code.claude.com/docs) for current policy; this README
+describes the situation as of July 2026 and is not legal advice.
+
 ## Quick start
 
 ```csharp
