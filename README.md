@@ -117,6 +117,15 @@ are yours to choose; the library just gives you a reliable signal.
 sessions can't answer permission prompts — without it, any Bash/Write tool call fails.
 Only run unattended sessions in a workspace you trust Claude to modify.
 
+### Long prompts (stdin delivery)
+
+Windows caps a process command line at ~32k characters, so a large prompt — a replayed
+conversation, an embedded document — fails to launch when passed as an argument
+("The filename or extension is too long"). Since 0.2.5, prompts longer than
+`ClaudeSessionOptions.StdinAutoThreshold` (8k chars) are piped to the CLI's stdin
+automatically. `PromptDelivery` on the options overrides the behavior: `Auto` (default),
+`Stdin` (always pipe), or `Argument` (pre-0.2.5 behavior).
+
 ## Cookbook
 
 **Commit messages from your staged diff** (pure text generation - one turn, no tools):

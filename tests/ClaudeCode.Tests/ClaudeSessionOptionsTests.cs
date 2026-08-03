@@ -32,6 +32,33 @@ public class ClaudeSessionOptionsTests
     }
 
     [Fact]
+    public void BuildArguments_StdinMode_OmitsThePromptArgument()
+    {
+        var args = Options().BuildArguments("a very long prompt", promptViaStdin: true);
+
+        args.Should().NotContain("a very long prompt");
+        args.Last().Should().Be("1000", "the argument list ends with the --max-turns value, not the prompt");
+    }
+
+    [Fact]
+    public void ShouldUseStdin_Auto_SwitchesAtTheThreshold()
+    {
+        var options = Options();  // PromptDelivery defaults to Auto
+
+        options.ShouldUseStdin(new string('x', ClaudeSessionOptions.StdinAutoThreshold)).Should().BeFalse();
+        options.ShouldUseStdin(new string('x', ClaudeSessionOptions.StdinAutoThreshold + 1)).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ShouldUseStdin_ExplicitModes_OverrideLength()
+    {
+        // Windows caps a process command line at ~32k chars; a 30KB conversation
+        // replay passed as an argument fails with "filename or extension is too long"
+        (Options() with { PromptDelivery = PromptDelivery.Stdin }).ShouldUseStdin("short").Should().BeTrue();
+        (Options() with { PromptDelivery = PromptDelivery.Argument }).ShouldUseStdin(new string('x', 100_000)).Should().BeFalse();
+    }
+
+    [Fact]
     public void BuildArguments_Resume_ComesFirst()
     {
         var args = new ClaudeSessionOptions

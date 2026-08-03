@@ -127,6 +127,10 @@ public sealed class ClaudeSession
         var claudePath = ClaudeCliLocator.FindExecutable()
             ?? throw new ClaudeCliNotFoundException();
 
+        // Long prompts go via stdin: Windows caps the process command line at
+        // ~32k chars, so a large prompt passed as an argument fails to launch.
+        var promptViaStdin = options.ShouldUseStdin(prompt);
+
         var startInfo = new ProcessStartInfo
         {
             FileName = claudePath,
@@ -134,15 +138,22 @@ public sealed class ClaudeSession
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            // Do NOT redirect stdin - it causes the CLI to hang waiting for input
-            RedirectStandardInput = false,
+            // Redirect stdin ONLY when we will write the prompt to it and close it.
+            // A redirected-but-unwritten stdin makes the CLI hang waiting for input.
+            RedirectStandardInput = promptViaStdin,
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };
 
+        if (promptViaStdin)
+        {
+            // No BOM - a BOM would prepend garbage to the prompt
+            startInfo.StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        }
+
         // ArgumentList handles platform quoting; no manual escaping of prompts
-        foreach (var arg in options.BuildArguments(prompt))
+        foreach (var arg in options.BuildArguments(prompt, promptViaStdin))
         {
             startInfo.ArgumentList.Add(arg);
         }
@@ -200,6 +211,23 @@ public sealed class ClaudeSession
             }
             onStdErrLine?.Invoke(line);
         }, cancellationToken);
+
+        if (promptViaStdin)
+        {
+            // Pumps are already draining stdout/stderr, so a large write cannot
+            // deadlock on a full pipe. Closing stdin signals end-of-prompt.
+            try
+            {
+                await process.StandardInput.WriteAsync(prompt.AsMemory(), cancellationToken).ConfigureAwait(false);
+            }
+            catch (IOException ex)
+            {
+                // CLI exited before reading the whole prompt (bad flags, crash) -
+                // the result/stderr pumps will surface the real error
+                _logger.LogWarning(ex, "Claude CLI closed stdin early");
+            }
+            process.StandardInput.Close();
+        }
 
         try
         {

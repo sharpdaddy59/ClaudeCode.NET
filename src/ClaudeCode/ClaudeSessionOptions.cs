@@ -3,10 +3,48 @@ using System.Globalization;
 namespace ClaudeCode;
 
 /// <summary>
+/// How the prompt is delivered to the Claude CLI process.
+/// </summary>
+public enum PromptDelivery
+{
+    /// <summary>
+    /// Argument for short prompts, stdin once the prompt exceeds
+    /// <see cref="ClaudeSessionOptions.StdinAutoThreshold"/>. Windows caps a
+    /// process command line at ~32k characters, so large prompts (conversation
+    /// replays, embedded documents) fail to launch as arguments. Default.
+    /// </summary>
+    Auto,
+
+    /// <summary>Always pass the prompt as a command-line argument (pre-0.2.5 behavior).</summary>
+    Argument,
+
+    /// <summary>Always pipe the prompt to the CLI's stdin.</summary>
+    Stdin
+}
+
+/// <summary>
 /// Options for a single Claude CLI invocation.
 /// </summary>
 public sealed record ClaudeSessionOptions
 {
+    /// <summary>
+    /// Prompt length above which <see cref="PromptDelivery.Auto"/> switches to
+    /// stdin. Conservative: the ~32k Windows command-line limit also has to fit
+    /// the executable path, flags, and the --append-system-prompt argument.
+    /// </summary>
+    public const int StdinAutoThreshold = 8_000;
+
+    /// <summary>How the prompt reaches the CLI. See <see cref="PromptDelivery"/>.</summary>
+    public PromptDelivery PromptDelivery { get; init; } = PromptDelivery.Auto;
+
+    /// <summary>Resolves whether this invocation should pipe the prompt via stdin.</summary>
+    public bool ShouldUseStdin(string prompt) => PromptDelivery switch
+    {
+        PromptDelivery.Stdin => true,
+        PromptDelivery.Argument => false,
+        _ => prompt.Length > StdinAutoThreshold,
+    };
+
     /// <summary>Directory the CLI runs in. Claude reads .mcp.json, CLAUDE.md, etc. from here.</summary>
     public required string WorkingDirectory { get; init; }
 
@@ -39,7 +77,16 @@ public sealed record ClaudeSessionOptions
     /// items intended for ProcessStartInfo.ArgumentList, which performs correct
     /// platform quoting - no manual escaping, and prompts keep their newlines.
     /// </summary>
-    public IReadOnlyList<string> BuildArguments(string prompt)
+    public IReadOnlyList<string> BuildArguments(string prompt) =>
+        BuildArguments(prompt, promptViaStdin: false);
+
+    /// <summary>
+    /// Builds the CLI argument vector. When <paramref name="promptViaStdin"/> is
+    /// true the prompt is omitted from the arguments - in --print mode with no
+    /// positional prompt, the CLI reads the prompt from stdin instead (the caller
+    /// must write it and close the stream, or the CLI hangs).
+    /// </summary>
+    public IReadOnlyList<string> BuildArguments(string prompt, bool promptViaStdin)
     {
         var args = new List<string>();
 
@@ -82,7 +129,10 @@ public sealed record ClaudeSessionOptions
             args.Add(SystemPrompt);
         }
 
-        args.Add(prompt);
+        if (!promptViaStdin)
+        {
+            args.Add(prompt);
+        }
 
         return args;
     }
