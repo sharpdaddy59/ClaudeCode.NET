@@ -10,10 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # GitHub OIDC token issuance for NuGet Trusted Publishing
-      contents: read
+      contents: write # create the GitHub Release
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history + tags: release notes list commits since the previous tag
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -52,3 +54,21 @@ jobs:
             --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
+
+      # The GitHub Release is the changelog. This repo commits straight to main
+      # (no PRs), so GitHub's auto-generated notes would be just a compare link;
+      # list the commit subjects since the previous tag instead. Runs last so a
+      # Release only exists for versions that actually reached nuget.org.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          {
+            echo "NuGet: https://www.nuget.org/packages/ClaudeCode.Net/${GITHUB_REF_NAME#v}"
+            echo
+            git log ${PREV:+$PREV..}"$GITHUB_REF_NAME" --no-merges --format='- %s'
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" ./artifacts/*.nupkg \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md

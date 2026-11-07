@@ -16,6 +16,7 @@
     <PackageTags>claude;claude-code;agent;ai;anthropic;cli</PackageTags>
     <PackageProjectUrl>https://github.com/sharpdaddy59/ClaudeCode.NET</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sharpdaddy59/ClaudeCode.NET</RepositoryUrl>
+    <PackageReleaseNotes>https://github.com/sharpdaddy59/ClaudeCode.NET/releases</PackageReleaseNotes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Self-describing record properties don't each need XML docs at 0.x -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>

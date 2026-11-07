@@ -1,5 +1,8 @@
 # ClaudeCode.NET
 
+[![NuGet](https://img.shields.io/nuget/v/ClaudeCode.Net.svg?logo=nuget)](https://www.nuget.org/packages/ClaudeCode.Net)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/sharpdaddy59/ClaudeCode.NET/blob/main/LICENSE)
+
 **Drive Claude Code sessions from .NET.**
 
 The Claude Agent SDK ships for TypeScript and Python. .NET developers who want to orchestrate [Claude Code](https://code.claude.com/docs/en/overview) sessions end up hand-rolling the same plumbing every time: find the CLI, spawn the process, escape the arguments, pump `stream-json` output, parse events, capture the session ID for resume. This library is that plumbing, done once and tested.
@@ -12,6 +15,14 @@ The Claude Agent SDK ships for TypeScript and Python. .NET developers who want t
 - **No logging opinion** — takes an optional `Microsoft.Extensions.Logging.ILogger`; silent by default
 
 Parsing is verified against real CLI output, not guessed from docs.
+
+## Install
+
+```bash
+dotnet add package ClaudeCode.Net
+```
+
+Package: [nuget.org/packages/ClaudeCode.Net](https://www.nuget.org/packages/ClaudeCode.Net) · Changelog: [GitHub Releases](https://github.com/sharpdaddy59/ClaudeCode.NET/releases)
 
 ## Requirements
 
