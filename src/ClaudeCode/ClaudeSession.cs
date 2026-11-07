@@ -297,7 +297,7 @@ public sealed class ClaudeSession
 }
 
 /// <summary>
-/// Result of <see cref="ClaudeSession.RunAsync"/>: session stats plus aggregated assistant text.
+/// Result of <see cref="ClaudeSession.RunAsync(string, ClaudeSessionOptions, CancellationToken)"/>: session stats plus aggregated assistant text.
 /// </summary>
 public sealed record ClaudeRunResult
 {
