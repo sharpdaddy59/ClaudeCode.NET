@@ -30,6 +30,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- DI.Abstractions is already transitive via Logging.Abstractions; referencing it
+         directly adds no packages to the consumer's graph -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="All" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />

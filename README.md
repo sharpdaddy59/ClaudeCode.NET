@@ -16,10 +16,10 @@ The Claude Agent SDK ships for TypeScript and Python. .NET developers who want t
 
 ## Design goals
 
-ClaudeCode.Net is deliberately small. Three public types, under a thousand lines, one
-dependency (`Microsoft.Extensions.Logging.Abstractions`). You can read the whole thing in
-a sitting, which is the point: it is the piece of your system you should never have to
-debug.
+ClaudeCode.Net is deliberately small. Three public types, about a thousand lines, and
+only the `Microsoft.Extensions.*.Abstractions` packages every ASP.NET app already carries
+(logging and dependency injection). You can read the whole thing in a sitting, which is
+the point: it is the piece of your system you should never have to debug.
 
 - **Small.** It spawns the official CLI and parses its output. Nothing else. No HTTP
   client, no credential handling, no protocol to keep in sync with the CLI's internals.
@@ -161,6 +161,37 @@ conversation, an embedded document — fails to launch when passed as an argumen
 automatically. `PromptDelivery` on the options overrides the behavior: `Auto` (default),
 `Stdin` (always pipe), or `Argument` (pre-0.2.5 behavior).
 
+### Live text (partial messages)
+
+By default the stream carries each assistant text block once, when it is complete. For a
+UI that should show text as it is generated, turn on partial messages:
+
+```csharp
+var live = options with { IncludePartialMessages = true };
+
+await foreach (var evt in session.StreamAsync(prompt, live))
+{
+    if (evt.Kind == ClaudeStreamEventKind.AssistantTextDelta)
+        Console.Write(evt.Text);               // fragments, as generated
+    else if (evt.Kind == ClaudeStreamEventKind.AssistantText)
+        Console.WriteLine();                   // the complete block follows; don't print it twice
+}
+```
+
+`AssistantTextDelta` events arrive ahead of each complete `AssistantText`, so render one
+or the other. `RunAsync` aggregates only the complete blocks, so its `AssistantText` is
+unaffected either way. Off by default: batch callers get a quieter stream.
+
+### Dependency injection
+
+```csharp
+builder.Services.AddClaudeCode();          // registers ClaudeSession as a singleton
+```
+
+`ClaudeSession` holds no per-run state (every call takes its own `ClaudeSessionOptions`),
+so one instance serves the whole application. It logs through `ILogger<ClaudeSession>`
+when logging is registered and stays silent when it isn't.
+
 ## Cookbook
 
 **Commit messages from your staged diff** (pure text generation - one turn, no tools):
@@ -224,10 +255,10 @@ Stable and in production use: this code was extracted from SharpCoder (a private
 application generator), where it drives multi-hour autonomous build sessions. The public
 API has only grown additively since 0.2.0.
 
-On the way to 1.0.0, all additive: dependency-injection registration, partial-message
-streaming for live UIs, and an opt-in rate-limit wait policy that resumes the same
-session instead of returning. A `Microsoft.Extensions.AI` `IChatClient` adapter will
-follow as a separate package, so the core keeps its one dependency.
+On the way to 1.0.0, all additive. Done since 0.2.7: dependency-injection registration
+and partial-message streaming for live UIs. Still to come: an opt-in rate-limit wait
+policy that resumes the same session instead of returning. A `Microsoft.Extensions.AI`
+`IChatClient` adapter will follow as a separate package, so the core stays this small.
 
 ## License
 

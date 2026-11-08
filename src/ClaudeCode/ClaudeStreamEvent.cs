@@ -35,7 +35,15 @@ public enum ClaudeStreamEventKind
     PlainText,
 
     /// <summary>JSON with an unrecognized type.</summary>
-    Unknown
+    Unknown,
+
+    /// <summary>
+    /// A fragment of assistant text as it is generated. Only emitted when
+    /// <see cref="ClaudeSessionOptions.IncludePartialMessages"/> is true. The
+    /// complete text still arrives afterwards as <see cref="AssistantText"/>, so
+    /// render one or the other, not both.
+    /// </summary>
+    AssistantTextDelta
 }
 
 /// <summary>
@@ -66,6 +74,9 @@ public sealed record ClaudeStreamEvent
 ///   {"type":"assistant","message":{"content":[{"type":"text"|"thinking"|"tool_use",...}]}}
 ///   {"type":"user","message":{"content":[{"type":"tool_result",...}]}}
 ///   {"type":"result","subtype":"success","is_error":false,"session_id":...,"num_turns":...,"total_cost_usd":...}
+/// With --include-partial-messages, additionally:
+///   {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hel"}},...}
+///   {"type":"stream_event","event":{"type":"message_start"|"content_block_start"|"content_block_stop"|"message_delta"|"message_stop",...},...}
 /// </summary>
 public static class ClaudeStreamParser
 {
@@ -95,6 +106,7 @@ public static class ClaudeStreamParser
                 "result" => ParseResult(root),
                 "error" => ParseError(root),
                 "rate_limit_event" => ParseRateLimit(root),
+                "stream_event" => ParseStreamEvent(root),
                 // Legacy root-level shapes, kept for compatibility with older CLI output
                 "tool_use" => ParseLegacyToolUse(root),
                 "tool_result" => ParseLegacyToolResult(root),
@@ -320,6 +332,31 @@ public static class ClaudeStreamParser
             // into the retry loop; the substring heuristic still covers error text.
             IsRateLimited = status == "rejected"
         }];
+    }
+
+    private static IReadOnlyList<ClaudeStreamEvent> ParseStreamEvent(JsonElement root)
+    {
+        // Raw Anthropic streaming events, wrapped by the CLI. Only text deltas carry
+        // anything a consumer renders; message/content-block boundaries, tool-input
+        // JSON deltas and thinking deltas are bookkeeping. The complete assistant
+        // message still follows as a normal "assistant" line, so nothing is lost by
+        // treating the rest as Progress.
+        if (root.TryGetProperty("event", out var evt) &&
+            evt.TryGetProperty("type", out var evtType) &&
+            evtType.GetString() == "content_block_delta" &&
+            evt.TryGetProperty("delta", out var delta) &&
+            delta.TryGetProperty("type", out var deltaType) &&
+            deltaType.GetString() == "text_delta" &&
+            delta.TryGetProperty("text", out var text))
+        {
+            return [new ClaudeStreamEvent
+            {
+                Kind = ClaudeStreamEventKind.AssistantTextDelta,
+                Text = text.GetString() ?? ""
+            }];
+        }
+
+        return [new ClaudeStreamEvent { Kind = ClaudeStreamEventKind.Progress }];
     }
 
     private static IReadOnlyList<ClaudeStreamEvent> ParseLegacyToolUse(JsonElement root)

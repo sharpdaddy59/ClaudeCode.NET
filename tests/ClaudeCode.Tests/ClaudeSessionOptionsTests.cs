@@ -20,6 +20,22 @@ public class ClaudeSessionOptionsTests
     }
 
     [Fact]
+    public void BuildArguments_PartialMessagesOffByDefault()
+    {
+        Options().BuildArguments("p").Should().NotContain("--include-partial-messages");
+    }
+
+    [Fact]
+    public void BuildArguments_IncludePartialMessages_AddsFlag()
+    {
+        var args = (Options() with { IncludePartialMessages = true }).BuildArguments("p");
+
+        args.Should().Contain("--include-partial-messages");
+        // Flag belongs with the output-format flags, before the prompt
+        args.Last().Should().Be("p");
+    }
+
+    [Fact]
     public void BuildArguments_PromptKeepsNewlinesAndQuotes()
     {
         // ArgumentList quoting means no manual escaping: conversation history with

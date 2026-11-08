@@ -130,6 +130,47 @@ public class ClaudeStreamParserTests
     }
 
     [Fact]
+    public void ParseLine_StreamEventTextDelta_IsAssistantTextDelta()
+    {
+        // Captured from `claude --include-partial-messages` (CLI 2.1.319)
+        var events = ClaudeStreamParser.ParseLine(
+            """{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello from partial stre"}},"session_id":"7fd11789-566a-4956-a609-22e732e56721","parent_tool_use_id":null,"uuid":"75d54ce2-097a-4ad4-82a5-03f56b332841","api_message_id":"msg_011CgqfePwcgYBbhaCd3htCz"}""");
+
+        events.Should().ContainSingle();
+        events[0].Kind.Should().Be(ClaudeStreamEventKind.AssistantTextDelta);
+        events[0].Text.Should().Be("Hello from partial stre");
+    }
+
+    [Theory]
+    [InlineData("""{"type":"stream_event","event":{"type":"message_start","message":{"model":"claude-fable-5-1","id":"msg_1","type":"message","role":"assistant","content":[],"stop_reason":null,"usage":{"input_tokens":2}}},"session_id":"s"}""")]
+    [InlineData("""{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}},"session_id":"s"}""")]
+    [InlineData("""{"type":"stream_event","event":{"type":"content_block_stop","index":0},"session_id":"s"}""")]
+    [InlineData("""{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":11}},"session_id":"s"}""")]
+    [InlineData("""{"type":"stream_event","event":{"type":"message_stop"},"session_id":"s"}""")]
+    // Tool-call argument streaming and thinking deltas carry nothing to render
+    [InlineData("""{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"command\":"}},"session_id":"s"}""")]
+    [InlineData("""{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me"}},"session_id":"s"}""")]
+    public void ParseLine_OtherStreamEvents_AreProgressNoise(string line)
+    {
+        var events = ClaudeStreamParser.ParseLine(line);
+
+        events.Should().ContainSingle().Which.Kind.Should().Be(ClaudeStreamEventKind.Progress);
+    }
+
+    [Fact]
+    public void ParseLine_TextDelta_DoesNotCarrySessionIdOrFlags()
+    {
+        // Deltas must not perturb the session's aggregate state (session id, error,
+        // rate-limit flags) that ClaudeSession folds from every event
+        var events = ClaudeStreamParser.ParseLine(
+            """{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"x"}},"session_id":"s"}""");
+
+        events[0].SessionId.Should().BeNull();
+        events[0].IsError.Should().BeFalse();
+        events[0].IsRateLimited.Should().BeFalse();
+    }
+
+    [Fact]
     public void ParseLine_NonJson_IsPlainText()
     {
         var events = ClaudeStreamParser.ParseLine("not json at all");

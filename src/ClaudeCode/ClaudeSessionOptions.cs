@@ -73,6 +73,14 @@ public sealed record ClaudeSessionOptions
     public IReadOnlyDictionary<string, string>? EnvironmentVariables { get; init; }
 
     /// <summary>
+    /// Stream assistant text as it is generated (--include-partial-messages). Adds
+    /// <see cref="ClaudeStreamEventKind.AssistantTextDelta"/> events ahead of each
+    /// complete <see cref="ClaudeStreamEventKind.AssistantText"/>; for live UIs.
+    /// Off by default: batch callers get a quieter stream.
+    /// </summary>
+    public bool IncludePartialMessages { get; init; }
+
+    /// <summary>
     /// Builds the CLI argument vector for this invocation. Arguments are individual
     /// items intended for ProcessStartInfo.ArgumentList, which performs correct
     /// platform quoting - no manual escaping, and prompts keep their newlines.
@@ -102,6 +110,11 @@ public sealed record ClaudeSessionOptions
         args.Add("--verbose");
         args.Add("--output-format");
         args.Add("stream-json");
+
+        if (IncludePartialMessages)
+        {
+            args.Add("--include-partial-messages");
+        }
 
         if (!string.IsNullOrEmpty(SessionName))
         {
