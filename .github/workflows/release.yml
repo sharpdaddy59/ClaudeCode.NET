@@ -27,17 +27,19 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release
 
-      - name: Verify tag matches csproj version
+      - name: Verify tag matches package version
         run: |
-          CSPROJ_VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/ClaudeCode/ClaudeCode.csproj)
+          CSPROJ_VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/Directory.Build.props)
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           if [ "$CSPROJ_VERSION" != "$TAG_VERSION" ]; then
-            echo "Tag $TAG_VERSION does not match csproj version $CSPROJ_VERSION - refusing to publish"
+            echo "Tag $TAG_VERSION does not match src/Directory.Build.props version $CSPROJ_VERSION - refusing to publish"
             exit 1
           fi
 
       - name: Pack
-        run: dotnet pack src/ClaudeCode --configuration Release --output ./artifacts
+        run: |
+          dotnet pack src/ClaudeCode --configuration Release --output ./artifacts
+          dotnet pack src/ClaudeCode.Extensions.AI --configuration Release --output ./artifacts
 
       # Trusted Publishing: exchange the GitHub OIDC token for a short-lived
       # (1 hour) NuGet API key. No stored secrets - nuget.org validates this
@@ -66,6 +68,7 @@ jobs:
           PREV=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
           {
             echo "NuGet: https://www.nuget.org/packages/ClaudeCode.Net/${GITHUB_REF_NAME#v}"
+            echo "NuGet: https://www.nuget.org/packages/ClaudeCode.Net.Extensions.AI/${GITHUB_REF_NAME#v}"
             echo
             git log ${PREV:+$PREV..}"$GITHUB_REF_NAME" --no-merges --format='- %s'
           } > notes.md

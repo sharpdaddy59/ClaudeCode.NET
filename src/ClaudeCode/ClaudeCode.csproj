@@ -1,32 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Version, target frameworks and shared package metadata: ../Directory.Build.props -->
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-
     <PackageId>ClaudeCode.Net</PackageId>
-    <Version>0.2.7</Version>
-    <Authors>Greg Haley</Authors>
     <Description>Drive Claude Code CLI sessions from .NET: typed stream-json events, session resume, and safe argument handling. Works with Max plan authentication (claude login) - no API key required.</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>icon.png</PackageIcon>
-    <RepositoryType>git</RepositoryType>
     <PackageTags>claude;claude-code;agent;ai;anthropic;cli</PackageTags>
-    <PackageProjectUrl>https://github.com/sharpdaddy59/ClaudeCode.NET</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/sharpdaddy59/ClaudeCode.NET</RepositoryUrl>
-    <PackageReleaseNotes>https://github.com/sharpdaddy59/ClaudeCode.NET/releases</PackageReleaseNotes>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Self-describing record properties don't each need XML docs at 0.x -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-
-    <!-- SourceLink: consumers can step into this package's source while debugging -->
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,9 +15,7 @@
          directly adds no packages to the consumer's graph -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="All" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
     <InternalsVisibleTo Include="ClaudeCode.Tests" />
   </ItemGroup>
 

@@ -92,6 +92,16 @@ public class ClaudeStreamParserTests
     }
 
     [Fact]
+    public void ParseLine_Result_KeepsRawJsonForUntypedFields()
+    {
+        // Token usage isn't typed; callers (e.g. the Extensions.AI adapter) read it from RawJson
+        var events = ClaudeStreamParser.ParseLine(
+            """{"type":"result","subtype":"success","is_error":false,"result":"done","session_id":"s-1","usage":{"input_tokens":5,"output_tokens":7}}""");
+
+        events[0].RawJson.Should().Contain("\"output_tokens\":7");
+    }
+
+    [Fact]
     public void ParseLine_ErrorResult_MentioningRateLimit_FlagsRateLimited()
     {
         var events = ClaudeStreamParser.ParseLine(

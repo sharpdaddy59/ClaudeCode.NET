@@ -2,12 +2,17 @@
   <Folder Name="/samples/">
     <Project Path="samples/ChainedRefactor/ChainedRefactor.csproj" />
     <Project Path="samples/CommitMessageBot/CommitMessageBot.csproj" />
+    <Project Path="samples/ConsoleChat/ConsoleChat.csproj" />
     <Project Path="samples/HelloAgent/HelloAgent.csproj" />
+    <Project Path="samples/PromptWorker/PromptWorker.csproj" />
+    <Project Path="samples/StreamingApi/StreamingApi.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/ClaudeCode/ClaudeCode.csproj" />
+    <Project Path="src/ClaudeCode.Extensions.AI/ClaudeCode.Extensions.AI.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ClaudeCode.Extensions.AI.Tests/ClaudeCode.Extensions.AI.Tests.csproj" />
     <Project Path="tests/ClaudeCode.Tests/ClaudeCode.Tests.csproj" />
   </Folder>
 </Solution>

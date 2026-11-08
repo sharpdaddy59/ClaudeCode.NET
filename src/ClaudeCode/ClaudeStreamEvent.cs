@@ -69,6 +69,12 @@ public sealed record ClaudeStreamEvent
     public double CostUsd { get; init; }
     public bool IsRateLimited { get; init; }
     public bool IsError { get; init; }
+    /// <summary>
+    /// The original JSON line, for fields this library does not type. Set on
+    /// <see cref="ClaudeStreamEventKind.Result"/> events (token usage, model usage) and
+    /// <see cref="ClaudeStreamEventKind.Unknown"/> events; null on the others to keep
+    /// high-volume events such as text deltas cheap.
+    /// </summary>
     public string? RawJson { get; init; }
 
     /// <summary>
@@ -314,7 +320,8 @@ public static class ClaudeStreamParser
             CostUsd = root.TryGetProperty("total_cost_usd", out var c) ? c.GetDouble() : 0,
             Text = resultText,
             IsError = isError,
-            IsRateLimited = isError && IsRateLimitError(resultText)
+            IsRateLimited = isError && IsRateLimitError(resultText),
+            RawJson = root.GetRawText()
         }];
     }
 

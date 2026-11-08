@@ -276,6 +276,12 @@ Runnable projects in [`samples/`](https://github.com/sharpdaddy59/ClaudeCode.NET
 - [`ChainedRefactor`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/ChainedRefactor) - two sessions where the second *resumes* the first and provably builds on its context
 - [`HelloAgent`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/HelloAgent) - minimal event-stream walkthrough
 
+Through the `IChatClient` adapter ([`ClaudeCode.Net.Extensions.AI`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/src/ClaudeCode.Extensions.AI)):
+
+- [`ConsoleChat`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/ConsoleChat) - streaming multi-turn chat that resumes one session
+- [`PromptWorker`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/PromptWorker) - worker service draining a folder of prompts, waiting out rate limits
+- [`StreamingApi`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/StreamingApi) - ASP.NET minimal API streaming replies as server-sent events
+
 ## Status
 
 Stable and in production use: this code was extracted from SharpCoder (a private AI
@@ -283,9 +289,9 @@ application generator), where it drives multi-hour autonomous build sessions. Th
 API has only grown additively since 0.2.0.
 
 Done since 0.2.7, all additive: dependency-injection registration, partial-message
-streaming for live UIs, and the opt-in rate-limit wait policy. These ship as 1.0.0. A
-`Microsoft.Extensions.AI` `IChatClient` adapter will follow as a separate package, so
-the core stays this small.
+streaming for live UIs, and the opt-in rate-limit wait policy. These ship as 1.0.0,
+alongside the `Microsoft.Extensions.AI` `IChatClient` adapter, which is a separate package
+(`ClaudeCode.Net.Extensions.AI`) so the core stays this small.
 
 ## License
 

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Version, target frameworks and shared package metadata: ../Directory.Build.props -->
+  <PropertyGroup>
+    <RootNamespace>ClaudeCode.Extensions.AI</RootNamespace>
+    <AssemblyName>ClaudeCode.Extensions.AI</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>ClaudeCode.Net.Extensions.AI</PackageId>
+    <Description>Microsoft.Extensions.AI (IChatClient) adapter for ClaudeCode.Net: drive Claude Code CLI sessions through the standard .NET AI abstractions. Works with Max plan authentication (claude login) - no API key required.</Description>
+    <PackageTags>claude;claude-code;ai;anthropic;extensions-ai;ichatclient</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Packs as a dependency on ClaudeCode.Net at the same (lockstep) version -->
+    <ProjectReference Include="..\ClaudeCode\ClaudeCode.csproj" />
+    <!-- Full Microsoft.Extensions.AI (not just Abstractions) for ChatClientBuilder / AddChatClient -->
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ClaudeCode.Extensions.AI.Tests" />
+  </ItemGroup>
+
+</Project>
