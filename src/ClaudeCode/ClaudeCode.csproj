@@ -7,11 +7,12 @@
     <LangVersion>latest</LangVersion>
 
     <PackageId>ClaudeCode.Net</PackageId>
-    <Version>0.2.6</Version>
+    <Version>0.2.7</Version>
     <Authors>Greg Haley</Authors>
     <Description>Drive Claude Code CLI sessions from .NET: typed stream-json events, session resume, and safe argument handling. Works with Max plan authentication (claude login) - no API key required.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <RepositoryType>git</RepositoryType>
     <PackageTags>claude;claude-code;agent;ai;anthropic;cli</PackageTags>
     <PackageProjectUrl>https://github.com/sharpdaddy59/ClaudeCode.NET</PackageProjectUrl>
@@ -32,6 +33,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="All" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
