@@ -29,7 +29,7 @@ jobs:
 
       - name: Verify tag matches package version
         run: |
-          CSPROJ_VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' src/Directory.Build.props)
+          CSPROJ_VERSION=$(grep -oPm1 '(?<=<Version>)[0-9][^<]*' src/Directory.Build.props)
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           if [ "$CSPROJ_VERSION" != "$TAG_VERSION" ]; then
             echo "Tag $TAG_VERSION does not match src/Directory.Build.props version $CSPROJ_VERSION - refusing to publish"

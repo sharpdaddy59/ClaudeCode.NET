@@ -1,7 +1,7 @@
 <Project>
 
   <!-- Shared by every package under src/. The packages version in lockstep: one tag
-       publishes them all (release.yml reads <Version> from this file). -->
+       publishes them all (release.yml reads the version from this file). -->
   <PropertyGroup>
     <Version>1.0.0</Version>
 
