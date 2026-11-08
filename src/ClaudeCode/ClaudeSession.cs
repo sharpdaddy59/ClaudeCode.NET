@@ -20,11 +20,28 @@ namespace ClaudeCode;
 /// </summary>
 public sealed class ClaudeSession
 {
+    /// <summary>One CLI launch. Internal seam so the rate-limit loop can be tested without the CLI.</summary>
+    internal delegate Task<ClaudeSessionResult> RunOnceDelegate(
+        string prompt,
+        ClaudeSessionOptions options,
+        Action<ClaudeStreamEvent>? onEvent,
+        Action<string>? onStdErrLine,
+        CancellationToken cancellationToken);
+
     private readonly ILogger _logger;
+    private readonly TimeProvider _timeProvider;
+    private readonly RunOnceDelegate _runOnce;
 
     public ClaudeSession(ILogger<ClaudeSession>? logger = null)
+        : this(logger, TimeProvider.System, runOnce: null)
+    {
+    }
+
+    internal ClaudeSession(ILogger? logger, TimeProvider timeProvider, RunOnceDelegate? runOnce)
     {
         _logger = logger ?? NullLogger<ClaudeSession>.Instance;
+        _timeProvider = timeProvider;
+        _runOnce = runOnce ?? RunOnceAsync;
     }
 
     /// <summary>
@@ -106,6 +123,8 @@ public sealed class ClaudeSession
             NumTurns = result.NumTurns,
             CostUsd = result.CostUsd,
             Duration = result.Duration,
+            RateLimitResetsAt = result.RateLimitResetsAt,
+            RateLimitWaits = result.RateLimitWaits,
             AssistantText = text.ToString().Trim()
         };
     }
@@ -116,6 +135,8 @@ public sealed class ClaudeSession
     /// orchestrators that relay events to a UI while also needing the outcome use
     /// this; simpler callers want <see cref="StreamAsync"/> or the aggregating
     /// <see cref="RunAsync(string, ClaudeSessionOptions, CancellationToken)"/>.
+    /// With <see cref="ClaudeSessionOptions.RateLimitWait"/> set, a run that ends on
+    /// a rate limit waits and resumes the same session; see <see cref="RateLimitWaitPolicy"/>.
     /// </summary>
     public async Task<ClaudeSessionResult> RunAsync(
         string prompt,
@@ -123,6 +144,89 @@ public sealed class ClaudeSession
         Action<ClaudeStreamEvent>? onEvent,
         Action<string>? onStdErrLine = null,
         CancellationToken cancellationToken = default)
+    {
+        var policy = options.RateLimitWait;
+        var attemptPrompt = prompt;
+        var attemptOptions = options;
+        var waits = 0;
+        var totalTurns = 0;
+        var totalCost = 0d;
+        var totalDuration = TimeSpan.Zero;
+
+        while (true)
+        {
+            var result = await _runOnce(attemptPrompt, attemptOptions, onEvent, onStdErrLine, cancellationToken)
+                .ConfigureAwait(false);
+
+            totalTurns += result.NumTurns;
+            totalCost += result.CostUsd;
+            totalDuration += result.Duration;
+            var aggregated = result with
+            {
+                NumTurns = totalTurns,
+                CostUsd = totalCost,
+                Duration = totalDuration,
+                RateLimitWaits = waits
+            };
+
+            // Only a run the limit actually ended. A 'rejected' heartbeat the CLI
+            // recovered from on its own still completes normally - leave it alone.
+            var endedByRateLimit = result.RateLimitDetected && (result.IsError || result.ExitCode != 0);
+            if (!endedByRateLimit || policy is null)
+            {
+                return aggregated;
+            }
+
+            if (waits >= policy.MaxWaits)
+            {
+                _logger.LogWarning("Rate limited again after {Waits} wait(s); giving up (MaxWaits)", waits);
+                return aggregated;
+            }
+
+            var wait = policy.ComputeWait(result.RateLimitResetsAt, _timeProvider.GetUtcNow());
+            if (wait is null)
+            {
+                _logger.LogWarning("Rate limited until {ResetsAt}, beyond MaxWait {MaxWait}; returning",
+                    result.RateLimitResetsAt, policy.MaxWait);
+                return aggregated;
+            }
+
+            waits++;
+            var sessionId = result.SessionId ?? attemptOptions.ResumeSessionId;
+            _logger.LogWarning("Rate limited; waiting {Wait} (reset {ResetsAt}) then resuming session {SessionId} ({Attempt}/{Max})",
+                wait, result.RateLimitResetsAt, sessionId ?? "(none yet)", waits, policy.MaxWaits);
+            onEvent?.Invoke(new ClaudeStreamEvent
+            {
+                Kind = ClaudeStreamEventKind.RateLimitWait,
+                Text = result.RateLimitResetsAt is { } at
+                    ? $"Rate limited; waiting {wait.Value:g} until {at:u} then resuming"
+                    : $"Rate limited; waiting {wait.Value:g} then resuming",
+                ResetsAt = result.RateLimitResetsAt,
+                SessionId = sessionId,
+                IsRateLimited = true
+            });
+
+            if (wait.Value > TimeSpan.Zero)
+            {
+                await Task.Delay(wait.Value, _timeProvider, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (sessionId is not null)
+            {
+                // Resume: the session keeps its context, so a nudge is enough
+                attemptOptions = options with { ResumeSessionId = sessionId };
+                attemptPrompt = policy.ContinuationPrompt;
+            }
+            // else: limited before the session initialized - rerun the original prompt as-is
+        }
+    }
+
+    private async Task<ClaudeSessionResult> RunOnceAsync(
+        string prompt,
+        ClaudeSessionOptions options,
+        Action<ClaudeStreamEvent>? onEvent,
+        Action<string>? onStdErrLine,
+        CancellationToken cancellationToken)
     {
         var claudePath = ClaudeCliLocator.FindExecutable()
             ?? throw new ClaudeCliNotFoundException();
@@ -173,6 +277,7 @@ public sealed class ClaudeSession
         var numTurns = 0;
         var costUsd = 0d;
         long durationMs = 0;
+        DateTimeOffset? resetsAt = null;
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
@@ -191,6 +296,9 @@ public sealed class ClaudeSession
                 sessionId = evt.SessionId ?? sessionId;
                 if (evt.IsRateLimited) rateLimitDetected = true;
                 if (evt.IsError) isError = true;
+                // Every rate_limit_event carries the window's reset time, limited or
+                // not; the latest one is the right wait target if we end up limited
+                if (evt.ResetsAt is not null) resetsAt = evt.ResetsAt;
                 if (evt.Kind == ClaudeStreamEventKind.Result)
                 {
                     resultText = evt.Text;
@@ -255,7 +363,8 @@ public sealed class ClaudeSession
             IsError = isError,
             NumTurns = numTurns,
             CostUsd = costUsd,
-            Duration = TimeSpan.FromMilliseconds(durationMs)
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            RateLimitResetsAt = resetsAt
         };
     }
 
@@ -310,7 +419,13 @@ public sealed record ClaudeRunResult
     public double CostUsd { get; init; }
     public TimeSpan Duration { get; init; }
 
-    /// <summary>All assistant text blocks, concatenated in stream order.</summary>
+    /// <inheritdoc cref="ClaudeSessionResult.RateLimitResetsAt"/>
+    public DateTimeOffset? RateLimitResetsAt { get; init; }
+
+    /// <inheritdoc cref="ClaudeSessionResult.RateLimitWaits"/>
+    public int RateLimitWaits { get; init; }
+
+    /// <summary>All assistant text blocks, concatenated in stream order (across all attempts when rate-limit waits occurred).</summary>
     public required string AssistantText { get; init; }
 }
 

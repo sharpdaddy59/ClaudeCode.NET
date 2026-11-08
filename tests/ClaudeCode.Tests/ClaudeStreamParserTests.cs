@@ -119,6 +119,29 @@ public class ClaudeStreamParserTests
     }
 
     [Fact]
+    public void ParseLine_RateLimitEvent_CapturesResetTime()
+    {
+        // Captured from CLI 2.1.319: an 'allowed' heartbeat still reports when the window resets
+        var events = ClaudeStreamParser.ParseLine(
+            """{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","resetsAt":1794166200,"rateLimitType":"five_hour","overageStatus":"rejected","isUsingOverage":false,"unifiedWindows":{"five_hour":{"utilization":0.04,"resetsAt":1794166200,"status":"allowed"},"seven_day":{"utilization":0.18,"resetsAt":1794362400,"status":"allowed"}}},"uuid":"u","session_id":"s"}""");
+
+        var evt = events.Should().ContainSingle().Subject;
+        evt.Kind.Should().Be(ClaudeStreamEventKind.RateLimit);
+        evt.IsRateLimited.Should().BeFalse();
+        evt.ResetsAt.Should().Be(DateTimeOffset.FromUnixTimeSeconds(1794166200));
+    }
+
+    [Fact]
+    public void ParseLine_RateLimitEvent_NonNumericResetTime_IsIgnored()
+    {
+        var events = ClaudeStreamParser.ParseLine(
+            """{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":"2026-11-08T12:00:00Z"}}""");
+
+        events[0].IsRateLimited.Should().BeTrue();
+        events[0].ResetsAt.Should().BeNull();
+    }
+
+    [Fact]
     public void ParseLine_ErrorMessage_IsErrorEvent()
     {
         var events = ClaudeStreamParser.ParseLine(

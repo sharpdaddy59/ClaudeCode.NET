@@ -43,7 +43,15 @@ public enum ClaudeStreamEventKind
     /// complete text still arrives afterwards as <see cref="AssistantText"/>, so
     /// render one or the other, not both.
     /// </summary>
-    AssistantTextDelta
+    AssistantTextDelta,
+
+    /// <summary>
+    /// The session hit a rate limit and <see cref="ClaudeSessionOptions.RateLimitWait"/>
+    /// is about to wait and resume it. <see cref="ClaudeStreamEvent.Text"/> says how
+    /// long; <see cref="ClaudeStreamEvent.ResetsAt"/> is the CLI-reported reset time,
+    /// if it gave one. Emitted by <see cref="ClaudeSession"/>, not parsed from the CLI.
+    /// </summary>
+    RateLimitWait
 }
 
 /// <summary>
@@ -62,6 +70,13 @@ public sealed record ClaudeStreamEvent
     public bool IsRateLimited { get; init; }
     public bool IsError { get; init; }
     public string? RawJson { get; init; }
+
+    /// <summary>
+    /// When the current rate-limit window resets, from the CLI's rate_limit_event.
+    /// Present on <see cref="ClaudeStreamEventKind.RateLimit"/> events whether the
+    /// status is allowed or rejected, and on <see cref="ClaudeStreamEventKind.RateLimitWait"/>.
+    /// </summary>
+    public DateTimeOffset? ResetsAt { get; init; }
 }
 
 /// <summary>
@@ -317,11 +332,20 @@ public static class ClaudeStreamParser
 
     private static IReadOnlyList<ClaudeStreamEvent> ParseRateLimit(JsonElement root)
     {
-        // {"type":"rate_limit_event","rate_limit_info":{"status":"allowed"|"rejected"|...}}
-        var status = root.TryGetProperty("rate_limit_info", out var info) &&
-                     info.TryGetProperty("status", out var s)
-            ? s.GetString()
-            : null;
+        // {"type":"rate_limit_event","rate_limit_info":{"status":"allowed"|"rejected"|...,
+        //   "resetsAt":1794166200,"rateLimitType":"five_hour",...}}
+        string? status = null;
+        DateTimeOffset? resetsAt = null;
+        if (root.TryGetProperty("rate_limit_info", out var info))
+        {
+            if (info.TryGetProperty("status", out var s)) status = s.GetString();
+            // Unix seconds. Guard the type: a future CLI could switch to ISO strings.
+            if (info.TryGetProperty("resetsAt", out var r) && r.ValueKind == JsonValueKind.Number &&
+                r.TryGetInt64(out var seconds))
+            {
+                resetsAt = DateTimeOffset.FromUnixTimeSeconds(seconds);
+            }
+        }
 
         return [new ClaudeStreamEvent
         {
@@ -330,7 +354,8 @@ public static class ClaudeStreamParser
             // Only 'rejected' clearly means throttled. Treating every unknown status as
             // a rate limit would send benign heartbeats (or a future 'allowed_warning')
             // into the retry loop; the substring heuristic still covers error text.
-            IsRateLimited = status == "rejected"
+            IsRateLimited = status == "rejected",
+            ResetsAt = resetsAt
         }];
     }
 

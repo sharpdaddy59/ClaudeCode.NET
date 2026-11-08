@@ -11,6 +11,7 @@ The Claude Agent SDK ships for TypeScript and Python. .NET developers who want t
 - **Safe argument handling** — prompts pass through `ProcessStartInfo.ArgumentList`, so newlines, quotes, and backslashes arrive verbatim (no shell-escaping bugs)
 - **Session chaining** — capture `SessionId` from one run, pass it as `ResumeSessionId` to the next
 - **Clean cancellation** — cancelling the token kills the entire CLI process tree; no orphaned `claude` processes
+- **Rate limits handled** — a reliable signal by default, or opt in to wait for the window and resume the same session
 - **Max plan friendly** — uses the CLI's `claude login` auth; no API key required
 - **No logging opinion** — takes an optional `Microsoft.Extensions.Logging.ILogger`; silent by default
 
@@ -143,8 +144,34 @@ var second = await session.RunAsync("Now implement feature B", chained);
 ### Rate limits
 
 `ClaudeRunResult.RateLimitDetected` is true when the CLI reports a rate limit (via its
-`rate_limit_event` stream event or recognizable error text) — poll-and-retry policies
-are yours to choose; the library just gives you a reliable signal.
+`rate_limit_event` stream event or recognizable error text), and `RateLimitResetsAt` is
+the window's reset time when the CLI gave one. By default the run returns and the
+decision is yours.
+
+For unattended work on a subscription, opt in to waiting it out instead:
+
+```csharp
+var options = new ClaudeSessionOptions
+{
+    WorkingDirectory = repoDir,
+    RateLimitWait = RateLimitWaitPolicy.Default   // or new RateLimitWaitPolicy { MaxWaits = 5, ... }
+};
+
+var result = await session.RunAsync(prompt, options);
+Console.WriteLine($"finished after {result.RateLimitWaits} rate-limit wait(s), {result.NumTurns} turns");
+```
+
+When a run ends because of the limit, the session waits until the CLI's reported reset
+time (plus a small pad), then **resumes the same session** with a short continuation
+prompt, so no context is lost. Stream consumers see a `RateLimitWait` event with the
+wait and reset time before the pause. `NumTurns`, `CostUsd` and `Duration` are summed
+across attempts.
+
+The defaults are tuned for the five-hour window and refuse the seven-day one: at most
+3 waits, never a single wait over 6 hours (the run returns rate-limited instead), and a
+15-minute fallback when the CLI reported the limit without a reset time. A rate-limit
+heartbeat the CLI recovered from on its own never triggers a wait; only a run the
+limit actually ended does.
 
 ### Unattended tool use
 
@@ -227,7 +254,7 @@ failed - always look at the whole outcome, not just the text:
 var result = await session.RunAsync(prompt, options);
 
 if (result.RateLimitDetected && result.IsError)
-    /* back off and retry later */ ;
+    /* still limited after any RateLimitWait policy gave up: back off until result.RateLimitResetsAt */ ;
 else if (result.IsError || result.ExitCode != 0)
     logger.LogError("Session failed: {Text}", result.ResultText);
 else
@@ -255,10 +282,10 @@ Stable and in production use: this code was extracted from SharpCoder (a private
 application generator), where it drives multi-hour autonomous build sessions. The public
 API has only grown additively since 0.2.0.
 
-On the way to 1.0.0, all additive. Done since 0.2.7: dependency-injection registration
-and partial-message streaming for live UIs. Still to come: an opt-in rate-limit wait
-policy that resumes the same session instead of returning. A `Microsoft.Extensions.AI`
-`IChatClient` adapter will follow as a separate package, so the core stays this small.
+Done since 0.2.7, all additive: dependency-injection registration, partial-message
+streaming for live UIs, and the opt-in rate-limit wait policy. These ship as 1.0.0. A
+`Microsoft.Extensions.AI` `IChatClient` adapter will follow as a separate package, so
+the core stays this small.
 
 ## License
 

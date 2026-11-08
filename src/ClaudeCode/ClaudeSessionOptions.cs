@@ -81,6 +81,15 @@ public sealed record ClaudeSessionOptions
     public bool IncludePartialMessages { get; init; }
 
     /// <summary>
+    /// When set, a run that ends because of a rate limit waits for the window to
+    /// reset and resumes the same session instead of returning. Null (default)
+    /// keeps the pre-1.0 behavior: the run returns with
+    /// <see cref="ClaudeSessionResult.RateLimitDetected"/> set and the caller decides.
+    /// See <see cref="RateLimitWaitPolicy"/>.
+    /// </summary>
+    public RateLimitWaitPolicy? RateLimitWait { get; init; }
+
+    /// <summary>
     /// Builds the CLI argument vector for this invocation. Arguments are individual
     /// items intended for ProcessStartInfo.ArgumentList, which performs correct
     /// platform quoting - no manual escaping, and prompts keep their newlines.
@@ -178,4 +187,75 @@ public sealed record ClaudeSessionResult
 
     /// <summary>Session duration reported by the CLI.</summary>
     public TimeSpan Duration { get; init; }
+
+    /// <summary>
+    /// When the rate-limit window resets, if the CLI reported it. Set whenever a
+    /// rate_limit_event carried a reset time, limited or not; meaningful to callers
+    /// when <see cref="RateLimitDetected"/> is true.
+    /// </summary>
+    public DateTimeOffset? RateLimitResetsAt { get; init; }
+
+    /// <summary>
+    /// How many times <see cref="ClaudeSessionOptions.RateLimitWait"/> waited and
+    /// resumed during this run. Always 0 without a policy. When greater than 0,
+    /// <see cref="NumTurns"/>, <see cref="CostUsd"/> and <see cref="Duration"/> are
+    /// summed across all attempts.
+    /// </summary>
+    public int RateLimitWaits { get; init; }
+}
+
+/// <summary>
+/// How <see cref="ClaudeSession"/> handles a run that ends because of a rate limit:
+/// wait for the window to reset, then resume the same session. Opt in via
+/// <see cref="ClaudeSessionOptions.RateLimitWait"/>. Defaults suit an unattended
+/// job on a subscription plan: wait out the five-hour window (up to three times),
+/// but never park for the seven-day one.
+/// </summary>
+public sealed record RateLimitWaitPolicy
+{
+    /// <summary>A policy with every default. Equivalent to <c>new RateLimitWaitPolicy()</c>.</summary>
+    public static RateLimitWaitPolicy Default { get; } = new();
+
+    /// <summary>Maximum number of wait-and-resume cycles per run. Default 3.</summary>
+    public int MaxWaits { get; init; } = 3;
+
+    /// <summary>
+    /// Longest single wait. If the CLI's reset time is further away than this, the
+    /// run returns rate-limited instead of waiting. Default 6 hours: covers a
+    /// five-hour window with slack, refuses a seven-day one.
+    /// </summary>
+    public TimeSpan MaxWait { get; init; } = TimeSpan.FromHours(6);
+
+    /// <summary>
+    /// Wait used when the CLI reported a rate limit without a reset time (for example
+    /// only an error message on stderr). Default 15 minutes.
+    /// </summary>
+    public TimeSpan FallbackWait { get; init; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>Added after the reported reset time so the window has actually rolled. Default 30 seconds.</summary>
+    public TimeSpan Padding { get; init; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Prompt sent when resuming. The session keeps its context, so a nudge is
+    /// enough. Default: "Continue where you left off."
+    /// </summary>
+    public string ContinuationPrompt { get; init; } = "Continue where you left off.";
+
+    /// <summary>
+    /// How long to wait given the CLI's reset time (or null) and the current time.
+    /// Zero if the window has already reset; null if the wait would exceed
+    /// <see cref="MaxWait"/> and the run should return instead. Pure, for testing
+    /// and for callers who implement their own loop.
+    /// </summary>
+    public TimeSpan? ComputeWait(DateTimeOffset? resetsAt, DateTimeOffset now)
+    {
+        if (resetsAt is null)
+        {
+            return FallbackWait <= MaxWait ? FallbackWait : null;
+        }
+
+        var wait = resetsAt.Value + Padding - now;
+        if (wait <= TimeSpan.Zero) return TimeSpan.Zero;
+        return wait <= MaxWait ? wait : null;
+    }
 }
