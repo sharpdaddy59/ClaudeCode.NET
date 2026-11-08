@@ -288,10 +288,11 @@ Stable and in production use: this code was extracted from SharpCoder (a private
 application generator), where it drives multi-hour autonomous build sessions. The public
 API has only grown additively since 0.2.0.
 
-Done since 0.2.7, all additive: dependency-injection registration, partial-message
-streaming for live UIs, and the opt-in rate-limit wait policy. These ship as 1.0.0,
-alongside the `Microsoft.Extensions.AI` `IChatClient` adapter, which is a separate package
-(`ClaudeCode.Net.Extensions.AI`) so the core stays this small.
+1.0.0 added, all additively: dependency-injection registration, partial-message
+streaming for live UIs, and the opt-in rate-limit wait policy. It also introduced the
+`Microsoft.Extensions.AI` `IChatClient` adapter as a separate package
+(`ClaudeCode.Net.Extensions.AI`) so the core stays this small. Both packages share one
+version.
 
 ## License
 
