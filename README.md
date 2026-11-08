@@ -14,6 +14,30 @@ The Claude Agent SDK ships for TypeScript and Python. .NET developers who want t
 - **Max plan friendly** — uses the CLI's `claude login` auth; no API key required
 - **No logging opinion** — takes an optional `Microsoft.Extensions.Logging.ILogger`; silent by default
 
+## Design goals
+
+ClaudeCode.Net is deliberately small. Three public types, under a thousand lines, one
+dependency (`Microsoft.Extensions.Logging.Abstractions`). You can read the whole thing in
+a sitting, which is the point: it is the piece of your system you should never have to
+debug.
+
+- **Small.** It spawns the official CLI and parses its output. Nothing else. No HTTP
+  client, no credential handling, no protocol to keep in sync with the CLI's internals.
+- **Subscription-first.** Built for people running Claude Code under a Pro/Max plan with
+  `claude login`. API keys work too, but the subscription path is the one that gets
+  tested every day.
+- **Reliable under long unattended runs.** Extracted from a production system that drives
+  multi-hour autonomous build sessions. The Windows command-line cap, process-tree
+  cleanup on cancel, and rate-limit detection all came from real failures.
+
+**What it is not.** It does not implement Claude Code's hooks, in-process MCP servers,
+subagent definitions, or the bidirectional control protocol. Those are the parts of the
+CLI's surface that change most often, and keeping them current is a project in itself.
+Several community SDKs port Anthropic's Python Agent SDK to .NET and cover that ground;
+[search nuget.org for "claude agent sdk"](https://www.nuget.org/packages?q=claude+agent+sdk)
+if you need it. If you need to run sessions, stream what they do, chain them, and get a
+trustworthy result, this library is enough.
+
 Parsing is verified against real CLI output, not guessed from docs.
 
 ## Install
@@ -196,7 +220,14 @@ Runnable projects in [`samples/`](https://github.com/sharpdaddy59/ClaudeCode.NET
 
 ## Status
 
-Early (0.1.0). Extracted from SharpCoder (a private project — an AI application generator), where this code drives multi-hour autonomous build sessions. API may move before 1.0.
+Stable and in production use: this code was extracted from SharpCoder (a private AI
+application generator), where it drives multi-hour autonomous build sessions. The public
+API has only grown additively since 0.2.0.
+
+On the way to 1.0.0, all additive: dependency-injection registration, partial-message
+streaming for live UIs, and an opt-in rate-limit wait policy that resumes the same
+session instead of returning. A `Microsoft.Extensions.AI` `IChatClient` adapter will
+follow as a separate package, so the core keeps its one dependency.
 
 ## License
 
