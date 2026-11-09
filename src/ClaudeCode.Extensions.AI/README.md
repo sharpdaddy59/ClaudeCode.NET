@@ -15,7 +15,7 @@ Each call runs one Claude Code CLI invocation in a working directory you choose.
 ## Install
 
 ```sh
-dotnet add package ClaudeCode.Net.Extensions.AI --prerelease
+dotnet add package ClaudeCode.Net.Extensions.AI
 ```
 
 The Claude Code CLI must be installed and signed in (`claude login`).
