@@ -10,6 +10,8 @@
     <Description>Microsoft.Extensions.AI (IChatClient) adapter for ClaudeCode.Net: drive Claude Code CLI sessions through the standard .NET AI abstractions. Works with Max plan authentication (claude login) - no API key required.</Description>
     <PackageTags>claude;claude-code;ai;anthropic;extensions-ai;ichatclient</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Land on this package's README; RepositoryUrl (SourceLink) stays the repo root -->
+    <PackageProjectUrl>https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/src/ClaudeCode.Extensions.AI</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>

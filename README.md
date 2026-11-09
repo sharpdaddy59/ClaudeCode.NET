@@ -1,6 +1,7 @@
 # ClaudeCode.NET
 
-[![NuGet](https://img.shields.io/nuget/v/ClaudeCode.Net.svg?logo=nuget)](https://www.nuget.org/packages/ClaudeCode.Net)
+[![NuGet](https://img.shields.io/nuget/v/ClaudeCode.Net.svg?logo=nuget&label=ClaudeCode.Net)](https://www.nuget.org/packages/ClaudeCode.Net)
+[![NuGet](https://img.shields.io/nuget/v/ClaudeCode.Net.Extensions.AI.svg?logo=nuget&label=ClaudeCode.Net.Extensions.AI)](https://www.nuget.org/packages/ClaudeCode.Net.Extensions.AI)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/sharpdaddy59/ClaudeCode.NET/blob/main/LICENSE)
 
 **Drive Claude Code sessions from .NET.**
@@ -14,6 +15,7 @@ The Claude Agent SDK ships for TypeScript and Python. .NET developers who want t
 - **Rate limits handled** — a reliable signal by default, or opt in to wait for the window and resume the same session
 - **Max plan friendly** — uses the CLI's `claude login` auth; no API key required
 - **No logging opinion** — takes an optional `Microsoft.Extensions.Logging.ILogger`; silent by default
+- **`IChatClient` too** — a separate adapter package plugs Claude Code into `Microsoft.Extensions.AI` ([below](#using-it-through-ichatclient))
 
 ## Design goals
 
@@ -48,6 +50,46 @@ dotnet add package ClaudeCode.Net
 ```
 
 Package: [nuget.org/packages/ClaudeCode.Net](https://www.nuget.org/packages/ClaudeCode.Net) · Changelog: [GitHub Releases](https://github.com/sharpdaddy59/ClaudeCode.NET/releases)
+
+## Using it through `IChatClient`
+
+A second package, **ClaudeCode.Net.Extensions.AI**, wraps the core library as a
+[`Microsoft.Extensions.AI`](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai)
+`IChatClient`. That is the standard .NET chat abstraction, so code written against it can
+talk to Claude Code the same way it talks to any other model provider.
+
+```bash
+dotnet add package ClaudeCode.Net.Extensions.AI
+```
+
+```csharp
+using ClaudeCode.Extensions.AI;
+using Microsoft.Extensions.AI;
+
+IChatClient chat = new ClaudeCodeChatClient(new ClaudeCodeChatClientOptions
+{
+    WorkingDirectory = @"C:\src\my-repo",
+});
+
+ChatResponse response = await chat.GetResponseAsync("Why does the build fail?");
+Console.WriteLine(response.Text);
+```
+
+**Which package do you want?**
+
+- **`ClaudeCode.Net`** when you are orchestrating Claude Code itself: unattended runs,
+  chaining sessions, watching every tool call and result, exit codes, rate-limit handling.
+  You get the CLI's full event stream with nothing abstracted away.
+- **`ClaudeCode.Net.Extensions.AI`** when your app is already built on `IChatClient`, or you
+  want to be able to swap providers: chat UIs, `IChatClient` middleware (logging, caching,
+  OpenTelemetry), or libraries that accept an `IChatClient`. It supports streaming,
+  multi-turn conversations (`ConversationId` resumes the CLI session), usage and cost,
+  and dependency injection via `AddClaudeCodeChatClient`.
+
+The adapter depends on the core package, and both always ship with the same version.
+Claude Code runs its own tools, so `IChatClient` function calling (`ChatOptions.Tools`)
+does not apply. The [adapter README](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/src/ClaudeCode.Extensions.AI)
+covers that, its options, and errors.
 
 ## Requirements
 
