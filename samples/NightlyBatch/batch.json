@@ -1,0 +1,21 @@
+// Nightly batch definition. Comments and trailing commas are allowed.
+// Relative paths are relative to this file's folder.
+{
+  // Each run gets its own timestamped folder in here.
+  "outputDirectory": "runs",
+
+  // Inherited by every task that does not set its own value.
+  "defaults": {
+    "prompt": "Review the code in this directory for likely bugs, unfinished work (TODO/FIXME) and gaps in error handling. Do not change any files. Reply with a short Markdown report: a one-line summary, then at most five findings, each with file:line and one sentence.",
+    "model": null,          // CLI default; e.g. "sonnet"
+    "timeout": null,        // e.g. "01:00:00"; counts rate-limit waits too
+    "skipPermissions": false // read-only tools only: a report should not need Bash or Edit
+  },
+
+  // Run in order, one at a time. A failed task does not stop the batch.
+  "tasks": [
+    { "name": "core-library", "workingDirectory": "../../src/ClaudeCode" },
+    { "name": "extensions-ai", "workingDirectory": "../../src/ClaudeCode.Extensions.AI" },
+    { "name": "samples", "workingDirectory": "..", "timeout": "00:20:00" }
+  ]
+}

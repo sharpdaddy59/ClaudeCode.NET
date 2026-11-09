@@ -318,6 +318,7 @@ Runnable projects in [`samples/`](https://github.com/sharpdaddy59/ClaudeCode.NET
 - [`ChainedRefactor`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/ChainedRefactor) - two sessions where the second *resumes* the first and provably builds on its context
 - [`HelloAgent`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/HelloAgent) - minimal event-stream walkthrough
 - [`JobQueueApi`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/JobQueueApi) - ASP.NET minimal API that queues prompts as background jobs: `202` now, poll for the result, rate limits waited out
+- [`NightlyBatch`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/NightlyBatch) - scheduled batch over a list of tasks: results and summary per run, scheduler-friendly exit codes, no overlapping runs
 
 Through the `IChatClient` adapter ([`ClaudeCode.Net.Extensions.AI`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/src/ClaudeCode.Extensions.AI)):
 

@@ -5,6 +5,7 @@
     <Project Path="samples/ConsoleChat/ConsoleChat.csproj" />
     <Project Path="samples/HelloAgent/HelloAgent.csproj" />
     <Project Path="samples/JobQueueApi/JobQueueApi.csproj" />
+    <Project Path="samples/NightlyBatch/NightlyBatch.csproj" />
     <Project Path="samples/PromptWorker/PromptWorker.csproj" />
     <Project Path="samples/StreamingApi/StreamingApi.csproj" />
   </Folder>
