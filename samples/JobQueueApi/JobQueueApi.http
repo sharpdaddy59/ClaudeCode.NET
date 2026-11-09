@@ -1,0 +1,17 @@
+@host = http://localhost:5180
+
+### Queue a job (copy the id from the response)
+POST {{host}}/jobs
+Content-Type: application/json
+
+{ "prompt": "List the files in this directory and say in one sentence what the project is." }
+
+### All jobs, newest first
+GET {{host}}/jobs
+
+### One job
+@id = 00000000-0000-0000-0000-000000000000
+GET {{host}}/jobs/{{id}}
+
+### Cancel it
+DELETE {{host}}/jobs/{{id}}

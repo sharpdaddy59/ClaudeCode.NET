@@ -317,6 +317,7 @@ Runnable projects in [`samples/`](https://github.com/sharpdaddy59/ClaudeCode.NET
 - [`CommitMessageBot`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/CommitMessageBot) - staged diff in, conventional commit message out (~40 lines)
 - [`ChainedRefactor`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/ChainedRefactor) - two sessions where the second *resumes* the first and provably builds on its context
 - [`HelloAgent`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/HelloAgent) - minimal event-stream walkthrough
+- [`JobQueueApi`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/samples/JobQueueApi) - ASP.NET minimal API that queues prompts as background jobs: `202` now, poll for the result, rate limits waited out
 
 Through the `IChatClient` adapter ([`ClaudeCode.Net.Extensions.AI`](https://github.com/sharpdaddy59/ClaudeCode.NET/tree/main/src/ClaudeCode.Extensions.AI)):
 
