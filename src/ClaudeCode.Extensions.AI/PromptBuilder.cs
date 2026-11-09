@@ -34,7 +34,10 @@ internal static class PromptBuilder
     /// The list is empty, contains null, has only system messages, does not end with a user
     /// message, or the final user message has no text.
     /// </exception>
-    /// <exception cref="NotSupportedException">A message contains content other than <see cref="TextContent"/>.</exception>
+    /// <exception cref="NotSupportedException">
+    /// A message that is sent contains content other than <see cref="TextContent"/>. When
+    /// resuming, turns the session already holds are not sent, and other content there is skipped.
+    /// </exception>
     public static BuiltPrompt Build(IEnumerable<ChatMessage> messages, string? baseSystemPrompt = null, bool resuming = false)
     {
         ArgumentNullException.ThrowIfNull(messages);
@@ -45,15 +48,22 @@ internal static class PromptBuilder
             systemParts.Add(baseSystemPrompt!);
         }
 
-        var turns = new List<(ChatRole Role, string Text)>();
-        foreach (var message in messages)
+        var list = messages.ToList();
+        if (list.Any(m => m is null))
         {
-            if (message is null)
-            {
-                throw new ArgumentException("The message list must not contain null entries.", nameof(messages));
-            }
+            throw new ArgumentException("The message list must not contain null entries.", nameof(messages));
+        }
 
-            var text = ExtractText(message);
+        // When resuming, the CLI session already holds every turn up to the last assistant
+        // message; those are never sent, so content this client can't send (reasoning, tool
+        // calls from other providers or middleware) is skipped there rather than rejected.
+        var unsentThrough = resuming ? list.FindLastIndex(m => m.Role == ChatRole.Assistant) : -1;
+
+        var turns = new List<(ChatRole Role, string Text)>();
+        for (var i = 0; i < list.Count; i++)
+        {
+            var message = list[i];
+            var text = ExtractText(message, skipNonText: i <= unsentThrough && message.Role != ChatRole.System);
             if (message.Role == ChatRole.System)
             {
                 if (!string.IsNullOrWhiteSpace(text))
@@ -110,9 +120,11 @@ internal static class PromptBuilder
         return new BuiltPrompt(sb.ToString(), systemPrompt);
     }
 
-    private static string ExtractText(ChatMessage message)
+    private static string ExtractText(ChatMessage message, bool skipNonText)
     {
-        var contents = message.Contents;
+        var contents = skipNonText
+            ? message.Contents.Where(c => c is TextContent).ToList()
+            : message.Contents;
         if (contents.Count == 1)
         {
             return AsText(contents[0]);

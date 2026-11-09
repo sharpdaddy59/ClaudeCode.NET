@@ -113,6 +113,7 @@ public sealed class ClaudeCodeChatClient : IChatClient
 
         var assistantText = new StringBuilder();
         var resultEventJson = new List<string?>();
+        var sawResult = false;
         var result = await Runner.RunAsync(
             prompt,
             sessionOptions,
@@ -121,6 +122,14 @@ public sealed class ClaudeCodeChatClient : IChatClient
                 if (evt.Kind == ClaudeStreamEventKind.Result)
                 {
                     resultEventJson.Add(evt.RawJson);
+                    sawResult = true;
+                }
+                else if (evt.Kind == ClaudeStreamEventKind.RateLimitWait)
+                {
+                    // The failed attempt's result doesn't count; the resumed attempt must report
+                    // its own. Its text stays: the resumed session continues the same answer,
+                    // streaming has already shown it, and the core keeps it the same way.
+                    sawResult = false;
                 }
                 else if (evt.Kind == ClaudeStreamEventKind.AssistantText && !string.IsNullOrEmpty(evt.Text))
                 {
@@ -137,6 +146,17 @@ public sealed class ClaudeCodeChatClient : IChatClient
         if (ClaudeCodeChatException.IsFailure(result))
         {
             throw ClaudeCodeChatException.FromResult(result);
+        }
+
+        // Exit code 0 but no result line (output cut off, CLI died after flushing):
+        // the same failure the streaming path reports, not an empty success
+        if (!sawResult)
+        {
+            throw ClaudeCodeChatException.FromResult(result with
+            {
+                ExitCode = ClaudeCodeChatException.UnknownExitCode,
+                IsError = true,
+            });
         }
 
         var text = string.IsNullOrEmpty(result.ResultText) ? assistantText.ToString() : result.ResultText;

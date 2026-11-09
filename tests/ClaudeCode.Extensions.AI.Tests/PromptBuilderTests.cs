@@ -259,13 +259,31 @@ public class PromptBuilderTests
     }
 
     [Fact]
-    public void Resuming_still_validates_the_whole_history()
+    public void Resuming_still_validates_the_messages_it_sends_and_the_history_shape()
     {
-        var unsupported = () => PromptBuilder.Build(
-            [new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c", "f")]), User("q")], resuming: true);
+        var unsupportedInNewMessage = () => PromptBuilder.Build(
+            [User("q"), Assistant("a"), new ChatMessage(ChatRole.User, [new FunctionCallContent("c", "f")])], resuming: true);
         var endsWithAssistant = () => PromptBuilder.Build([User("q"), Assistant("a")], resuming: true);
 
-        unsupported.Should().Throw<NotSupportedException>();
+        unsupportedInNewMessage.Should().Throw<NotSupportedException>();
         endsWithAssistant.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Resuming_skips_unsupported_content_in_turns_the_session_already_holds()
+    {
+        // Reasoning or tool-call content another provider or middleware left in the history
+        var history = new List<ChatMessage>
+        {
+            User("first question"),
+            new(ChatRole.Assistant, [new TextReasoningContent("thinking"), new TextContent("answer"), new FunctionCallContent("c", "f")]),
+            User("follow-up"),
+        };
+
+        PromptBuilder.Build(history, resuming: true).Prompt.Should().Be("follow-up");
+
+        // Without a session to resume, the whole history is replayed, so it is still rejected
+        var replay = () => PromptBuilder.Build(history, resuming: false);
+        replay.Should().Throw<NotSupportedException>();
     }
 }

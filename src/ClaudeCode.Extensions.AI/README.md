@@ -108,10 +108,13 @@ and `ChatOptions.Instructions` is appended to the system prompt.
 - `AdditionalProperties` carries `claude.cost_usd`, `claude.num_turns`, `claude.duration_ms` and,
   after rate-limit waits, `claude.rate_limit_waits` (constants on `ClaudeCodeChatClient`).
 - A session that ends in an error throws `ClaudeCodeChatException`, which has `ExitCode`, `SessionId`,
-  `RateLimitDetected` and `RateLimitResetsAt`. When streaming, a CLI that exits without a final
-  result also throws, after the updates received so far; its `ExitCode` is
-  `ClaudeCodeChatException.UnknownExitCode` because streaming cannot observe it.
+  `RateLimitDetected` and `RateLimitResetsAt`. A CLI that exits without a final result also
+  throws, streaming or not, with `ExitCode` set to `ClaudeCodeChatException.UnknownExitCode`.
+  When streaming, that happens after the updates received so far.
   `ClaudeCliNotFoundException` and cancellation propagate unchanged.
+- One difference remains: streaming decides success from the final result alone, because the
+  event stream does not carry the CLI's exit code. A run that reports a successful result and
+  then exits non-zero (rare) succeeds when streamed, and throws from `GetResponseAsync`.
 
 ## Not supported, and why
 

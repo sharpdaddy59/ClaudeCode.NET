@@ -213,4 +213,52 @@ public class ClaudeCodeChatClientErrorTests
         ex.InnerException.Should().BeSameAs(inner);
         ex.ExitCode.Should().Be(3);
     }
+
+    private static ClaudeStreamEvent RateLimitWait()
+        => new() { Kind = ClaudeStreamEventKind.RateLimitWait, Text = "Rate limited; waiting 1m then resuming", IsRateLimited = true };
+
+    [Fact]
+    public async Task Clean_exit_without_a_result_event_throws_like_streaming_does()
+    {
+        // Output cut off: some text, exit code 0, but the CLI never wrote its result line
+        _runner.Enqueue().Init("sess-cut").Text("partial answer").WithoutResultEvent()
+            .Returns(new ClaudeSessionResult { ExitCode = 0, SessionId = "sess-cut" });
+        using var client = CreateClient();
+
+        var act = () => client.GetResponseAsync("Hi", cancellationToken: Ct);
+
+        var ex = (await act.Should().ThrowAsync<ClaudeCodeChatException>()).Which;
+        ex.ExitCode.Should().Be(ClaudeCodeChatException.UnknownExitCode);
+        ex.Message.Should().Be("The Claude Code session failed without reporting a result.");
+        ex.SessionId.Should().Be("sess-cut");
+    }
+
+    [Fact]
+    public async Task Resumed_attempt_without_its_own_result_event_throws()
+    {
+        // The failed attempt reported a result; the resumed one never did
+        _runner.Enqueue().Text("before").Final(text: "usage limit", isError: true).Event(RateLimitWait())
+            .Text("after").WithoutResultEvent()
+            .Returns(new ClaudeSessionResult { ExitCode = 0, SessionId = "s", RateLimitWaits = 1 });
+        using var client = CreateClient();
+
+        var act = () => client.GetResponseAsync("Hi", cancellationToken: Ct);
+
+        (await act.Should().ThrowAsync<ClaudeCodeChatException>()).Which
+            .ExitCode.Should().Be(ClaudeCodeChatException.UnknownExitCode);
+    }
+
+    [Fact]
+    public async Task Text_from_before_a_rate_limit_wait_is_kept_in_the_fallback_reply()
+    {
+        // No final result text, so the reply falls back to the assistant text: the resumed
+        // session continues the same answer, as streaming already showed it
+        _runner.Enqueue().Text("first half").Final(text: "usage limit", isError: true).Event(RateLimitWait())
+            .Text("second half").Final(text: "", sessionId: "s");
+        using var client = CreateClient();
+
+        var response = await client.GetResponseAsync("Hi", cancellationToken: Ct);
+
+        response.Text.Should().Be("first half\n\nsecond half");
+    }
 }

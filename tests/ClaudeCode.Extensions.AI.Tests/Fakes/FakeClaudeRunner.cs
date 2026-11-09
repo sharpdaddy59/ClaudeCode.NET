@@ -28,6 +28,13 @@ public sealed class FakeRun
     /// <summary>Thrown after the events have been replayed (e.g. ClaudeCliNotFoundException).</summary>
     public Exception? Exception { get; set; }
 
+    /// <summary>
+    /// The real CLI ends every attempt with a Result event, so in Run mode the fake emits one
+    /// (built from the resolved result) when the script has none after the last rate-limit
+    /// wait. Set this to replay a CLI that exits without one.
+    /// </summary>
+    public bool OmitResultEvent { get; set; }
+
     /// <summary>Delay before each event, to exercise cancellation.</summary>
     public TimeSpan DelayPerEvent { get; set; }
 
@@ -57,6 +64,19 @@ public sealed class FakeRun
             CostUsd = costUsd,
             DurationMs = durationMs,
         });
+
+    public FakeRun WithoutResultEvent()
+    {
+        OmitResultEvent = true;
+        return this;
+    }
+
+    internal bool NeedsSyntheticResultEvent()
+    {
+        if (OmitResultEvent) return false;
+        var lastWait = Events.FindLastIndex(e => e.Kind == ClaudeStreamEventKind.RateLimitWait);
+        return !Events.Skip(lastWait + 1).Any(e => e.Kind == ClaudeStreamEventKind.Result);
+    }
 
     public FakeRun Returns(ClaudeSessionResult result)
     {
@@ -163,7 +183,22 @@ public sealed class FakeClaudeRunner : IClaudeRunner
             throw run.Exception;
         }
 
-        return run.ResolveResult();
+        var result = run.ResolveResult();
+        if (run.NeedsSyntheticResultEvent())
+        {
+            onEvent?.Invoke(new ClaudeStreamEvent
+            {
+                Kind = ClaudeStreamEventKind.Result,
+                Text = result.ResultText!,
+                SessionId = result.SessionId!,
+                IsError = result.IsError,
+                NumTurns = result.NumTurns,
+                CostUsd = result.CostUsd,
+                DurationMs = (long)result.Duration.TotalMilliseconds,
+            });
+        }
+
+        return result;
     }
 
     public async IAsyncEnumerable<ClaudeStreamEvent> StreamAsync(
