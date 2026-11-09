@@ -140,6 +140,32 @@ public sealed class StreamingApiTests : IDisposable
         events.Should().NotContain(e => e.Event == "done");
     }
 
+    [Fact]
+    public async Task Cli_not_found_after_the_stream_started_ends_with_error_event()
+    {
+        _runner.Enqueue().Throws(new ClaudeCliNotFoundException());
+
+        var (response, events) = await PostChatAsync(new { prompt = "go" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        events[^1].Event.Should().Be("error");
+        JsonDocument.Parse(events[^1].Data).RootElement.GetProperty("message").GetString()
+            .Should().StartWith("Claude CLI not found");
+    }
+
+    [Fact]
+    public async Task Unexpected_exception_ends_with_generic_error_event()
+    {
+        _runner.Enqueue().Init("sess-x").Delta("partial").Throws(new InvalidOperationException("internal detail"));
+
+        var (_, events) = await PostChatAsync(new { prompt = "go" });
+
+        events[0].Data.Should().Be("partial");
+        events[^1].Event.Should().Be("error");
+        var message = JsonDocument.Parse(events[^1].Data).RootElement.GetProperty("message").GetString();
+        message.Should().Be("The request failed unexpectedly.").And.NotContain("internal detail");
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

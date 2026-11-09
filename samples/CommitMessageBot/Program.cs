@@ -13,9 +13,31 @@ var psi = new ProcessStartInfo("git", "diff --cached")
     RedirectStandardOutput = true,
     RedirectStandardError = true
 };
-using var git = Process.Start(psi)!;
-var diff = await git.StandardOutput.ReadToEndAsync();
-await git.WaitForExitAsync();
+
+string diff;
+try
+{
+    using var git = Process.Start(psi)!;
+    // Read both pipes at once: an unread stderr that fills up would block git
+    var stdout = git.StandardOutput.ReadToEndAsync();
+    var stderr = git.StandardError.ReadToEndAsync();
+    await git.WaitForExitAsync();
+    diff = await stdout;
+
+    if (git.ExitCode != 0)
+    {
+        // Not a repository, a bad path, ...: say what git said, not "nothing staged"
+        // First line only: outside a repository git follows it with its whole usage text
+        var gitError = (await stderr).Trim().Split('\n')[0];
+        Console.Error.WriteLine($"git diff --cached failed in {repoDir}: {gitError}");
+        return 1;
+    }
+}
+catch (System.ComponentModel.Win32Exception)
+{
+    Console.Error.WriteLine("git was not found. Install Git and make sure it is on PATH.");
+    return 1;
+}
 
 if (string.IsNullOrWhiteSpace(diff))
 {

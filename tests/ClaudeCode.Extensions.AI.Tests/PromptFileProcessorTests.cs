@@ -120,6 +120,20 @@ public sealed class PromptFileProcessorTests : IDisposable
     }
 
     [Fact]
+    public async Task Unexpected_exception_moves_prompt_to_failed_instead_of_stopping_the_host()
+    {
+        var processor = CreateProcessor(new ScriptedChatClient(
+            _ => throw new InvalidOperationException("middleware bug")));
+        var prompt = WritePrompt("p.md", "hello");
+
+        var outcome = await processor.ProcessAsync(prompt, Ct);
+
+        outcome.Should().Be(PromptOutcome.Failed);
+        File.Exists(prompt).Should().BeFalse("a prompt left in the inbox would fail again on every poll and restart");
+        File.ReadAllText(Path.Combine(_options.FailedPath, "p.error.txt")).Should().Contain("InvalidOperationException: middleware bug");
+    }
+
+    [Fact]
     public async Task Cancellation_leaves_the_file_in_the_inbox()
     {
         _runner.Enqueue().Delta("slow").Delta("reply").WithDelay(TimeSpan.FromSeconds(30));

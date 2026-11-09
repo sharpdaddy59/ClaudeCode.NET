@@ -67,6 +67,17 @@ public static class ChatSseEndpoint
             var payload = JsonSerializer.Serialize(new { message = ex.Message, conversationId = ex.SessionId ?? conversationId }, Json);
             await WriteEventAsync(http.Response, "error", payload, aborted);
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The response has started, so a status code can no longer say it: end the stream
+            // with an error event instead of cutting it off. Only the CLI-not-found message is
+            // meant for users; anything else stays in the server log.
+            http.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("StreamingApi.Chat").LogError(ex, "Chat stream failed");
+            var message = ex is ClaudeCode.ClaudeCliNotFoundException ? ex.Message : "The request failed unexpectedly.";
+            var payload = JsonSerializer.Serialize(new { message, conversationId }, Json);
+            await WriteEventAsync(http.Response, "error", payload, aborted);
+        }
     }
 
     /// <summary>Writes one SSE event. Multi-line data becomes several <c>data:</c> lines, per the SSE spec.</summary>

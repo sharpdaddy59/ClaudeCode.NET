@@ -70,7 +70,11 @@ public sealed class PromptFileProcessor(
         {
             throw;
         }
-        catch (Exception ex) when (ex is ClaudeCodeChatException or ArgumentException or NotSupportedException)
+        // Anything else fails this prompt, not the host. (IO errors still go up to the worker,
+        // which retries the file on the next poll: it may be locked or still being written.)
+        // Letting an unexpected exception escape would stop the host, and the prompt, still in
+        // the inbox, would crash it again on every restart.
+        catch (Exception ex) when (ex is not IOException and not UnauthorizedAccessException)
         {
             await FailAsync(promptPath, fileName, ex).ConfigureAwait(false);
             return PromptOutcome.Failed;
