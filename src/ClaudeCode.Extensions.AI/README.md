@@ -1,5 +1,8 @@
 # ClaudeCode.Net.Extensions.AI
 
+[![NuGet](https://img.shields.io/nuget/v/ClaudeCode.Net.Extensions.AI.svg?logo=nuget&label=ClaudeCode.Net.Extensions.AI)](https://www.nuget.org/packages/ClaudeCode.Net.Extensions.AI)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/sharpdaddy59/ClaudeCode.NET/blob/main/LICENSE)
+
 A [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai) `IChatClient`
 for the **Claude Code CLI**, built on [ClaudeCode.Net](https://www.nuget.org/packages/ClaudeCode.Net).
 Anything written against `IChatClient` (middleware, logging, `ChatClientBuilder` pipelines, your own
