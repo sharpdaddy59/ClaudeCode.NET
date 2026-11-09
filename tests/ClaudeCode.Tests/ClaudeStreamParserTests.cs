@@ -225,6 +225,12 @@ public class ClaudeStreamParserTests
     [InlineData("Rate limit exceeded", true)]
     [InlineData("rate_limit_error from API", true)]
     [InlineData("HTTP 429 Too Many Requests", true)]
+    [InlineData("API Error: 429 {\"type\":\"error\"}", true)]
+    [InlineData("request failed with status 429.", true)]
+    // '429' inside ids and file names is not a status code
+    [InlineData("Error: session a9a8c332-4290-4b1e-9f00-1c2d3e4f5a6b not found", false)]
+    [InlineData("Error: request req_0429abc failed", false)]
+    [InlineData("Error: cannot open report-429.txt", false)]
     [InlineData("quota exceeded for this billing period", true)]
     [InlineData("Usage limit reached", true)]
     [InlineData("The API is overloaded", true)]

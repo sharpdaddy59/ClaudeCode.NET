@@ -143,12 +143,23 @@ public static class ClaudeStreamParser
         {
             return [new ClaudeStreamEvent { Kind = ClaudeStreamEventKind.PlainText, Text = line }];
         }
+        catch (InvalidOperationException)
+        {
+            // Valid JSON with an unexpected value type (a null or string where a number
+            // belongs, an array where an object belongs): keep it, don't throw
+            return [new ClaudeStreamEvent { Kind = ClaudeStreamEventKind.Unknown, RawJson = line }];
+        }
     }
 
     /// <summary>
     /// True if the message looks like a rate-limit / capacity error. Substring heuristic —
     /// apply only to error messages and stderr, not arbitrary tool output.
     /// </summary>
+    // 429 as a standalone number ("HTTP 429", "error 429."), not inside hex ids,
+    // request ids or file names (a9a8-4290-..., req_0429ab, report-429.txt)
+    private static readonly System.Text.RegularExpressions.Regex Http429 =
+        new(@"(?<![\w-])429(?![\w-])", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     public static bool IsRateLimitError(string? message)
     {
         if (string.IsNullOrEmpty(message)) return false;
@@ -158,7 +169,7 @@ public static class ClaudeStreamParser
                lower.Contains("rate_limit") ||
                lower.Contains("ratelimit") ||
                lower.Contains("too many requests") ||
-               lower.Contains("429") ||
+               Http429.IsMatch(lower) ||
                lower.Contains("quota exceeded") ||
                lower.Contains("usage limit") ||
                lower.Contains("at capacity") ||
@@ -314,16 +325,21 @@ public static class ClaudeStreamParser
         return [new ClaudeStreamEvent
         {
             Kind = ClaudeStreamEventKind.Result,
-            SessionId = root.TryGetProperty("session_id", out var sid) ? sid.GetString() : null,
-            DurationMs = root.TryGetProperty("duration_ms", out var d) ? d.GetInt64() : 0,
-            NumTurns = root.TryGetProperty("num_turns", out var n) ? n.GetInt32() : 0,
-            CostUsd = root.TryGetProperty("total_cost_usd", out var c) ? c.GetDouble() : 0,
+            // The result line decides the run's outcome: read it leniently, so one odd
+            // value (null, string, out of range) costs that field, not the whole event
+            SessionId = StringOrNull(root, "session_id"),
+            DurationMs = root.TryGetProperty("duration_ms", out var d) && d.ValueKind == JsonValueKind.Number && d.TryGetInt64(out var ms) ? ms : 0,
+            NumTurns = root.TryGetProperty("num_turns", out var n) && n.ValueKind == JsonValueKind.Number && n.TryGetInt32(out var turns) ? turns : 0,
+            CostUsd = root.TryGetProperty("total_cost_usd", out var c) && c.ValueKind == JsonValueKind.Number && c.TryGetDouble(out var cost) ? cost : 0,
             Text = resultText,
             IsError = isError,
             IsRateLimited = isError && IsRateLimitError(resultText),
             RawJson = root.GetRawText()
         }];
     }
+
+    private static string? StringOrNull(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
     private static IReadOnlyList<ClaudeStreamEvent> ParseError(JsonElement root)
     {

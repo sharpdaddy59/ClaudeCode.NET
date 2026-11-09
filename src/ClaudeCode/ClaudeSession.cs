@@ -61,6 +61,9 @@ public sealed class ClaudeSession
             SingleReader = true
         });
 
+        // Its own token, so a caller that stops reading early (break, LINQ First)
+        // also stops the CLI instead of leaving it running unobserved
+        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var runTask = RunAsync(
             prompt,
             options,
@@ -72,15 +75,37 @@ public sealed class ClaudeSession
                 IsError = true,
                 IsRateLimited = ClaudeStreamParser.IsRateLimitError(line)
             }),
-            cancellationToken);
+            runCts.Token);
 
         _ = runTask.ContinueWith(
             t => channel.Writer.TryComplete(t.Exception?.GetBaseException()),
             TaskScheduler.Default);
 
-        await foreach (var evt in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+        var readToEnd = false;
+        try
         {
-            yield return evt;
+            await foreach (var evt in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                yield return evt;
+            }
+            readToEnd = true;
+        }
+        finally
+        {
+            if (!readToEnd)
+            {
+                // Abandoned early, canceled, or failed: kill the CLI and let it finish
+                // before returning, so no process outlives the enumeration
+                runCts.Cancel();
+                try
+                {
+                    await runTask.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The caller is already leaving (or handling another exception)
+                }
+            }
         }
 
         // Surface CLI launch failures (e.g. CLI not installed) to the caller
@@ -230,6 +255,9 @@ public sealed class ClaudeSession
     {
         var claudePath = ClaudeCliLocator.FindExecutable()
             ?? throw new ClaudeCliNotFoundException();
+        // Never start a .cmd/.bat: Windows runs it through cmd.exe, which re-parses the
+        // command line and would interpret quotes, & and % inside the prompt.
+        var launch = ClaudeCliLocator.ResolveLaunch(claudePath);
 
         // Long prompts go via stdin: Windows caps the process command line at
         // ~32k chars, so a large prompt passed as an argument fails to launch.
@@ -237,7 +265,7 @@ public sealed class ClaudeSession
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = claudePath,
+            FileName = launch.FileName,
             WorkingDirectory = options.WorkingDirectory,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -254,6 +282,11 @@ public sealed class ClaudeSession
         {
             // No BOM - a BOM would prepend garbage to the prompt
             startInfo.StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        }
+
+        foreach (var arg in launch.LeadingArguments)
+        {
+            startInfo.ArgumentList.Add(arg);
         }
 
         // ArgumentList handles platform quoting; no manual escaping of prompts
@@ -327,14 +360,21 @@ public sealed class ClaudeSession
             try
             {
                 await process.StandardInput.WriteAsync(prompt.AsMemory(), cancellationToken).ConfigureAwait(false);
+                // Close flushes the buffered tail of the prompt, so it can fail the same way
+                process.StandardInput.Close();
             }
             catch (IOException ex)
             {
                 // CLI exited before reading the whole prompt (bad flags, crash) -
                 // the result/stderr pumps will surface the real error
                 _logger.LogWarning(ex, "Claude CLI closed stdin early");
+                CloseQuietly(process.StandardInput);
             }
-            process.StandardInput.Close();
+            catch (OperationCanceledException)
+            {
+                CloseQuietly(process.StandardInput);
+                throw;
+            }
         }
 
         try
@@ -368,15 +408,32 @@ public sealed class ClaudeSession
         };
     }
 
-    private async Task PumpAsync(StreamReader reader, Action<string> onLine, CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads lines until end-of-stream. Keeps reading even when handling a line throws
+    /// (a parser surprise, or the caller's own event callback): stopping would leave the
+    /// CLI blocked on a full pipe and the run would never finish.
+    /// </summary>
+    internal async Task PumpAsync(StreamReader reader, Action<string> onLine, CancellationToken cancellationToken)
     {
+        var handlerFailures = 0;
         try
         {
             // ReadLineAsync returns null at end-of-stream (including after a kill closes the pipe)
             while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
             {
                 if (line.Length == 0) continue;
-                onLine(line);
+                try
+                {
+                    onLine(line);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Log the first few; a callback that throws on every event would flood the log
+                    if (++handlerFailures <= 3)
+                    {
+                        _logger.LogError(ex, "Error handling a Claude CLI output line; reading continues");
+                    }
+                }
             }
         }
         catch (OperationCanceledException)
@@ -386,6 +443,18 @@ public sealed class ClaudeSession
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error reading Claude CLI stream");
+        }
+    }
+
+    private static void CloseQuietly(StreamWriter writer)
+    {
+        try
+        {
+            writer.Close();
+        }
+        catch (IOException)
+        {
+            // The pipe is already broken; nothing left to flush
         }
     }
 
@@ -432,5 +501,20 @@ public sealed record ClaudeRunResult
 /// <summary>
 /// Thrown when the Claude Code CLI cannot be located on this machine.
 /// </summary>
-public sealed class ClaudeCliNotFoundException() : Exception(
-    "Claude CLI not found. Install it with the native installer - Windows PowerShell: irm https://claude.ai/install.ps1 | iex - macOS/Linux: curl -fsSL https://claude.ai/install.sh | bash - then run claude to log in. Docs: https://code.claude.com/docs/en/quickstart");
+public sealed class ClaudeCliNotFoundException : Exception
+{
+    internal const string InstallHint =
+        "Install it with the native installer - Windows PowerShell: irm https://claude.ai/install.ps1 | iex - macOS/Linux: curl -fsSL https://claude.ai/install.sh | bash - then run claude to log in. Docs: https://code.claude.com/docs/en/quickstart";
+
+    /// <summary>The CLI is not installed (or not where ClaudeCode.Net looks).</summary>
+    public ClaudeCliNotFoundException()
+        : base("Claude CLI not found. " + InstallHint)
+    {
+    }
+
+    /// <summary>A CLI was found but cannot be launched safely; the message says why.</summary>
+    internal ClaudeCliNotFoundException(string message)
+        : base(message)
+    {
+    }
+}
